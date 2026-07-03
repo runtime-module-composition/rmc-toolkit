@@ -74,6 +74,10 @@ The Vite adapter injects an import map into the HTML and externalizes manifest-o
 
 Early scaffold. The current goal is to prove the package boundaries and keep the core portable before adding framework-specific behavior.
 
+## Implementation Guides
+
+Each public method has a usage guide in [docs/implementation-guide.md](docs/implementation-guide.md).
+
 ## Example
 
 ```ts
