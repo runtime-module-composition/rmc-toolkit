@@ -3,6 +3,29 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./packages/core/dist/index.d.ts",
+      "import": "./packages/core/dist/index.js"
+    },
+    "./core": {
+      "types": "./packages/core/dist/index.d.ts",
+      "import": "./packages/core/dist/index.js"
+    },
+    "./vite": {
+      "types": "./packages/vite/dist/index.d.ts",
+      "import": "./packages/vite/dist/index.js"
+    },
+    "./react": {
+      "types": "./packages/react/dist/index.d.ts",
+      "import": "./packages/react/dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "packages/*/dist",
+    "README.md"
+  ],
   "workspaces": [
     "packages/*"
   ],

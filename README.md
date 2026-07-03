@@ -8,6 +8,20 @@ The project is intentionally split into a framework-agnostic core plus adapters:
 - `@runtime-module-composition/vite`: Vite/Rollup helpers for externalizing import-map-owned dependencies and injecting local import maps.
 - `@runtime-module-composition/react`: React boundary for rendering dynamically imported module components.
 
+The root package also exposes subpath imports:
+
+```ts
+import { createImportMap } from "runtime-module-composition/core";
+import { externalizeRuntimeComposition } from "runtime-module-composition/vite";
+import { DynamicModuleBoundary } from "runtime-module-composition/react";
+```
+
+The default root import currently targets the framework-agnostic core:
+
+```ts
+import { defineManifest, resolveRoute } from "runtime-module-composition";
+```
+
 ## Status
 
 Early scaffold. The current goal is to prove the package boundaries and keep the core portable before adding framework-specific behavior.
@@ -49,4 +63,3 @@ npm install
 npm run build
 npm test
 ```
-
