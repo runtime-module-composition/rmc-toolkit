@@ -9,7 +9,7 @@ import type { Plugin } from "vite";
 export type RuntimeCompositionViteOptions = {
   manifest: RuntimeCompositionManifest;
   environment?: RuntimeEnvironment;
-  injectImportMap?: boolean;
+  includeImportMap?: boolean;
   externalize?: boolean;
 };
 
@@ -45,11 +45,11 @@ export const externalizeRuntimeComposition = ({
   };
 };
 
-export const injectRuntimeImportMap = ({
+export const includeRuntimeImportMap = ({
   manifest,
   environment = "development",
 }: RuntimeCompositionViteOptions): Plugin => ({
-  name: "runtime-module-composition-import-map",
+  name: "runtime-module-composition-include-import-map",
   transformIndexHtml(html) {
     const importMap = createImportMap(manifest, { environment });
     const script = `<script type="importmap" data-runtime-module-composition>${JSON.stringify(importMap)}</script>`;
@@ -75,8 +75,8 @@ export const runtimeComposition = (
     plugins.push(externalizeRuntimeComposition(options));
   }
 
-  if (options.injectImportMap !== false) {
-    plugins.push(injectRuntimeImportMap(options));
+  if (options.includeImportMap !== false) {
+    plugins.push(includeRuntimeImportMap(options));
   }
 
   return plugins;

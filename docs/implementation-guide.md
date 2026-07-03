@@ -72,21 +72,20 @@ const importMap = createImportMap(manifest, {
   environment: "development",
 });
 
-document.head.append(
-  Object.assign(document.createElement("script"), {
-    type: "importmap",
-    textContent: JSON.stringify(importMap),
-  }),
-);
+const importMapScript = `<script type="importmap">${JSON.stringify(importMap)}</script>`;
+const html = templateHtml.replace("<!-- runtime import map -->", importMapScript);
 ```
 
 Implementation notes:
 
+- Import maps must be present in the initial HTML before any dependent module scripts execute.
+- Do not add the import map after app startup with DOM APIs such as `document.head.append()`.
+- In Vite projects, prefer `runtimeComposition()` or `includeRuntimeImportMap()` so the HTML is transformed before the browser receives it.
 - Production slice URLs come from `assetsOrigin + entry`.
 - Absolute `entry` URLs are used as-is.
 - `shared` dependencies can provide environment-specific URLs.
 - Slice `environments` override the normal `entry` URL for a given environment.
-- Most Vite users should call `runtimeComposition()` instead of injecting this manually.
+- Non-Vite build systems should generate the import-map script during their HTML build step.
 
 ### `resolveRoute(manifest, path)`
 
@@ -233,14 +232,14 @@ Import from the Vite subpath:
 import {
   createRollupExternal,
   externalizeRuntimeComposition,
-  injectRuntimeImportMap,
+  includeRuntimeImportMap,
   runtimeComposition,
 } from "runtime-module-composition/vite";
 ```
 
 ### `runtimeComposition(options)`
 
-Use `runtimeComposition()` for local development in a Vite host or shell. It returns both required plugins: import-map injection and dependency externalization.
+Use `runtimeComposition()` for local development in a Vite host or shell. It returns both required plugins: import-map HTML generation and dependency externalization.
 
 ```ts
 import { defineConfig } from "vite";
@@ -261,19 +260,19 @@ Implementation notes:
 
 - Use this as the default Vite integration.
 - Set `environment: "development"` for local dev-server slice URLs.
-- Set `injectImportMap: false` if your HTML already loads an import map.
+- Set `includeImportMap: false` if your HTML already includes an import map before module scripts.
 - Set `externalize: false` only when intentionally bundling mapped dependencies.
 
-### `injectRuntimeImportMap(options)`
+### `includeRuntimeImportMap(options)`
 
-Use `injectRuntimeImportMap()` when you only want HTML import-map injection.
+Use `includeRuntimeImportMap()` when you only want Vite to generate HTML that includes the import map.
 
 ```ts
-import { injectRuntimeImportMap } from "runtime-module-composition/vite";
+import { includeRuntimeImportMap } from "runtime-module-composition/vite";
 
 export default defineConfig({
   plugins: [
-    injectRuntimeImportMap({
+    includeRuntimeImportMap({
       manifest,
       environment: "development",
     }),
@@ -285,6 +284,8 @@ Implementation notes:
 
 - Adds a `<script type="importmap" data-runtime-module-composition>` tag.
 - Replaces an existing Runtime Module Composition import map if one already exists.
+- Runs as a Vite HTML transform before the browser receives `index.html`.
+- Does not add an import map after app startup.
 - Does not externalize imports by itself.
 
 ### `externalizeRuntimeComposition(options)`
@@ -307,7 +308,7 @@ Implementation notes:
 
 - Prevents Vite from optimizing or rewriting mapped specifiers during local dev.
 - Returns external IDs for manifest-owned imports.
-- Pair with an import map, either injected or loaded separately.
+- Pair with an import map that is already present in the initial HTML.
 
 ### `createRollupExternal(manifest)`
 
@@ -389,4 +390,3 @@ Implementation notes:
 4. Use `createRollupExternal()` in slice production builds.
 5. Resolve routes with `resolveRoute()` in the host shell.
 6. Load the resolved slice with a framework adapter, such as `DynamicModuleBoundary()`, or with the DOM contract via `loadRuntimeModule()`.
-

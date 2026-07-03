@@ -5,7 +5,7 @@ Runtime Module Composition is a small toolkit for building import-map-based micr
 The project is intentionally split into a framework-agnostic core plus adapters:
 
 - `@runtime-module-composition/core`: manifest, import map, route resolution, validation, and dynamic module loading primitives.
-- `@runtime-module-composition/vite`: Vite/Rollup helpers for externalizing import-map-owned dependencies and injecting local import maps.
+- `@runtime-module-composition/vite`: Vite/Rollup helpers for externalizing import-map-owned dependencies and generating HTML with import maps before module execution.
 - `@runtime-module-composition/react`: React boundary for rendering dynamically imported module components.
 
 The root package also exposes subpath imports:
@@ -68,7 +68,7 @@ export default defineConfig({
 });
 ```
 
-The Vite adapter injects an import map into the HTML and externalizes manifest-owned specifiers so Vite does not rewrite or bundle imports that should be resolved by the browser.
+The Vite adapter includes the generated import map in Vite's transformed HTML and externalizes manifest-owned specifiers so Vite does not rewrite or bundle imports that should be resolved by the browser. The import map must be present in the initial HTML before any dependent module scripts execute.
 
 ## Status
 
