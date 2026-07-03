@@ -1,0 +1,24 @@
+{
+  "name": "runtime-module-composition",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b packages/*",
+    "clean": "tsc -b packages/* --clean",
+    "test": "vitest run",
+    "typecheck": "tsc -b packages/* --pretty false"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^5.8.0",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.0",
+    "react": "^19.0.0"
+  }
+}
