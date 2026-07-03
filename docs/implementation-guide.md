@@ -53,7 +53,7 @@ Implementation notes:
 - `externalDepsOrigin` is the origin for external dependency specifiers. By default, it maps the `@esm.sh/` prefix to this origin.
 - `entryFile` defaults to `index.mjs`, so `/search/routes` resolves to `@acme/search/index.mjs`.
 - `environments.development.sliceOrigins` lets local development map one slice prefix to a dev server.
-- `routes` and `slices` are optional escape hatches for nonstandard cases.
+- `routeOverrides` and `sliceOverrides` are optional escape hatches for nonstandard cases.
 
 ### `createImportMap(manifest, options)`
 
@@ -101,7 +101,7 @@ Implementation notes:
 
 - By default, the first URL segment becomes the slice name.
 - `/search/routes` resolves to `@acme/search/index.mjs` when `entryFile` is not customized.
-- Explicit `routes` overrides beat convention-based resolution.
+- Explicit `routeOverrides` entries beat convention-based resolution.
 - Return value is `null` for `/` unless a route override is configured.
 
 ### `listExternalSpecifiers(manifest)`
@@ -118,8 +118,8 @@ Implementation notes:
 
 - The namespace prefix, such as `@acme/`, is external by default.
 - The external dependency prefix, such as `@esm.sh/`, is external when `externalDepsOrigin` is configured.
-- Explicit `shared` dependencies and `slices` are also external by default when configured.
-- Set `external: false` on an explicit shared dependency or slice to exclude it from the list.
+- Explicit `exactImports` dependencies and `sliceOverrides` are also external by default when configured.
+- Set `external: false` on an explicit `exactImports` entry or `sliceOverrides` entry to exclude it from the list.
 - Build adapters use this indirectly through `createExternalMatcher()`.
 
 ### `createExternalMatcher(manifest)`
@@ -144,7 +144,7 @@ Implementation notes:
 
 - Any specifier under the manifest namespace, such as `@acme/search/index.mjs`, is matched.
 - Any specifier under the external dependency prefix, such as `@esm.sh/react`, is matched when `externalDepsOrigin` is configured.
-- Explicit shared dependency and slice specifiers are also matched when configured.
+- Explicit `exactImports` and `sliceOverrides` specifiers are also matched when configured.
 - This keeps import-map-owned modules out of slice bundles.
 
 ### `loadRuntimeModule(specifier, importer)`
@@ -201,8 +201,8 @@ Implementation notes:
 
 - Invalid `assetsOrigin` values are errors.
 - Invalid `externalDepsOrigin` values are errors.
-- Namespace, external dependency prefix, route override, and explicit slice mismatches are warnings.
-- Explicit slice entries that do not look like ESM assets are warnings unless they are absolute URLs.
+- Namespace, external dependency prefix, route override, and slice override mismatches are warnings.
+- Slice override entries that do not look like ESM assets are warnings unless they are absolute URLs.
 - Keep this in CI once the manifest becomes a release contract.
 
 ### URL Helpers
@@ -310,7 +310,7 @@ Implementation notes:
 
 ### `createRollupExternal(manifest)`
 
-Use `createRollupExternal()` in production library builds for slices.
+Use `createRollupExternal()` in production library builds for slice modules.
 
 ```ts
 import { createRollupExternal } from "runtime-module-composition/vite";
