@@ -16,15 +16,15 @@ export const listExternalSpecifiers = (
       : null,
   ].filter((value): value is string => Boolean(value));
 
-  const shared = Object.entries(manifest.shared ?? {})
+  const exactImportSpecifiers = Object.entries(manifest.exactImports ?? {})
     .filter(([, config]) => isSharedExternal(config))
     .map(([specifier]) => specifier);
 
-  const slices = Object.values(manifest.slices ?? {})
+  const sliceOverrideSpecifiers = Object.values(manifest.sliceOverrides ?? {})
     .filter((slice) => slice.external !== false)
     .map((slice) => slice.specifier);
 
-  return [...prefixes, ...shared, ...slices];
+  return [...prefixes, ...exactImportSpecifiers, ...sliceOverrideSpecifiers];
 };
 
 export const createExternalMatcher = (

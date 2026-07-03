@@ -66,11 +66,11 @@ export const createImportMap = (
       ensurePrefix(externalDepsOrigin);
   }
 
-  for (const [specifier, config] of Object.entries(manifest.shared ?? {})) {
+  for (const [specifier, config] of Object.entries(manifest.exactImports ?? {})) {
     imports[specifier] = resolveSharedDependencyUrl(config, environment);
   }
 
-  for (const slice of Object.values(manifest.slices ?? {})) {
+  for (const slice of Object.values(manifest.sliceOverrides ?? {})) {
     imports[slice.specifier] = resolveSliceUrl(manifest, slice, environment);
   }
 

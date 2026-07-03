@@ -43,9 +43,9 @@ export type RuntimeCompositionManifest = {
   externalDepsPrefix?: string;
   entryFile?: string;
   environments?: Partial<Record<RuntimeEnvironment, EnvironmentConfig>>;
-  shared?: Record<string, SharedDependencyConfig>;
-  slices?: Record<string, SliceConfig>;
-  routes?: Record<string, RouteOverrideConfig>;
+  exactImports?: Record<string, SharedDependencyConfig>;
+  sliceOverrides?: Record<string, SliceConfig>;
+  routeOverrides?: Record<string, RouteOverrideConfig>;
 };
 
 export type RuntimeRouteMatch = {

@@ -46,7 +46,7 @@ export const validateManifest = (
     });
   }
 
-  for (const [sliceName, slice] of Object.entries(manifest.slices ?? {})) {
+  for (const [sliceName, slice] of Object.entries(manifest.sliceOverrides ?? {})) {
     if (!slice.specifier.startsWith(`${manifest.namespace}/`)) {
       diagnostics.push({
         level: "warning",
@@ -64,7 +64,7 @@ export const validateManifest = (
     }
   }
 
-  for (const [route, override] of Object.entries(manifest.routes ?? {})) {
+  for (const [route, override] of Object.entries(manifest.routeOverrides ?? {})) {
     const specifier = typeof override === "string" ? override : override.specifier;
 
     if (!route.startsWith("/")) {

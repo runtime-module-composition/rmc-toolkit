@@ -83,7 +83,7 @@ const resolveExplicitRoute = (
 ): RuntimeRouteMatch | null => {
   const matches: Array<RuntimeRouteMatch & { score: number }> = [];
 
-  for (const [route, override] of Object.entries(manifest.routes ?? {})) {
+  for (const [route, override] of Object.entries(manifest.routeOverrides ?? {})) {
     for (const pattern of routePatternsForOverride(route, override)) {
       const match = matchRoutePattern(pattern, path);
       if (match.matched) {
@@ -103,7 +103,7 @@ const resolveExplicitRoute = (
     }
   }
 
-  for (const [sliceName, slice] of Object.entries(manifest.slices ?? {})) {
+  for (const [sliceName, slice] of Object.entries(manifest.sliceOverrides ?? {})) {
     for (const route of routePatternsFor(slice)) {
       const match = matchRoutePattern(route, path);
       if (match.matched) {
@@ -150,4 +150,3 @@ export const resolveRoute = (
   };
 };
 
-export const resolveConventionalRoute = resolveRoute;

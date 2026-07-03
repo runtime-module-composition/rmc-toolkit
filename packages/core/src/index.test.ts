@@ -25,23 +25,43 @@ describe("runtime composition core", () => {
 
   test("uses environment-specific origins and slice origins", () => {
     expect(
-      createImportMap({
-        ...manifest,
-        environments: {
-          development: {
-            assetsOrigin: "http://localhost:5173/assets",
-            externalDepsOrigin: "https://esm.sh",
-            sliceOrigins: {
-              search: "http://localhost:5174",
+      createImportMap(
+        {
+          ...manifest,
+          environments: {
+            development: {
+              assetsOrigin: "http://localhost:5173/assets",
+              externalDepsOrigin: "https://esm.sh",
+              sliceOrigins: {
+                search: "http://localhost:5174",
+              },
             },
           },
         },
-      }, { environment: "development" }),
+        { environment: "development" },
+      ),
     ).toEqual({
       imports: {
         "@acme/": "http://localhost:5173/assets/",
         "@esm.sh/": "https://esm.sh/",
         "@acme/search/": "http://localhost:5174/",
+      },
+    });
+  });
+
+  test("includes exactImports entries in the generated import map", () => {
+    expect(
+      createImportMap({
+        ...manifest,
+        exactImports: {
+          react: "https://esm.sh/react@19.2.4",
+        },
+      }),
+    ).toEqual({
+      imports: {
+        "@acme/": "https://assets.example.com/",
+        "@esm.sh/": "https://esm.sh/",
+        react: "https://esm.sh/react@19.2.4",
       },
     });
   });
@@ -56,11 +76,11 @@ describe("runtime composition core", () => {
     expect(resolveRoute(manifest, "/")).toBeNull();
   });
 
-  test("supports explicit route overrides for exceptions", () => {
+  test("supports explicit routeOverrides for exceptions", () => {
     const match = resolveRoute(
       {
         ...manifest,
-        routes: {
+        routeOverrides: {
           "/": "@acme/home/index.mjs",
         },
       },
@@ -68,6 +88,24 @@ describe("runtime composition core", () => {
     );
 
     expect(match?.specifier).toBe("@acme/home/index.mjs");
+  });
+
+  test("supports sliceOverrides for slices outside the entryFile convention", () => {
+    const match = resolveRoute(
+      {
+        ...manifest,
+        sliceOverrides: {
+          legacy: {
+            route: "/legacy/*",
+            specifier: "@acme/legacy",
+            entry: "/legacy/index.mjs",
+          },
+        },
+      },
+      "/legacy/anything",
+    );
+
+    expect(match?.specifier).toBe("@acme/legacy");
   });
 
   test("creates an external matcher from the manifest", () => {
@@ -79,8 +117,29 @@ describe("runtime composition core", () => {
     expect(isExternal("lodash")).toBe(false);
   });
 
+  test("external matcher also matches exactImports and sliceOverrides specifiers", () => {
+    const isExternal = createExternalMatcher({
+      ...manifest,
+      exactImports: {
+        react: "https://esm.sh/react@19.2.4",
+      },
+      sliceOverrides: {
+        legacy: {
+          route: "/legacy/*",
+          specifier: "@vendor/legacy",
+          entry: "/legacy/index.mjs",
+        },
+      },
+    });
+
+    expect(isExternal("react")).toBe(true);
+    expect(isExternal("@vendor/legacy")).toBe(true);
+    expect(isExternal("lodash")).toBe(false);
+  });
+
   test("validates the base manifest without errors", () => {
-    expect(validateManifest(manifest).filter((item) => item.level === "error"))
-      .toHaveLength(0);
+    expect(
+      validateManifest(manifest).filter((item) => item.level === "error"),
+    ).toHaveLength(0);
   });
 });
