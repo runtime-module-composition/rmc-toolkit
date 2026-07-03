@@ -21,12 +21,15 @@ const resolveSharedDependencyUrl = (
 const resolveSliceUrl = (
   manifest: RuntimeCompositionManifest,
   slice: SliceConfig,
+  environment: RuntimeEnvironment,
 ): string => {
-  if (/^https?:\/\//.test(slice.entry)) {
-    return slice.entry;
+  const entry = slice.environments?.[environment] ?? slice.entry;
+
+  if (/^https?:\/\//.test(entry)) {
+    return entry;
   }
 
-  return joinUrl(manifest.assetsOrigin, slice.entry);
+  return joinUrl(manifest.assetsOrigin, entry);
 };
 
 export type CreateImportMapOptions = {
@@ -45,9 +48,8 @@ export const createImportMap = (
   }
 
   for (const slice of Object.values(manifest.slices)) {
-    imports[slice.specifier] = resolveSliceUrl(manifest, slice);
+    imports[slice.specifier] = resolveSliceUrl(manifest, slice, environment);
   }
 
   return { imports };
 };
-

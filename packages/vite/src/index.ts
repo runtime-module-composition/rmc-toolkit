@@ -9,6 +9,8 @@ import type { Plugin } from "vite";
 export type RuntimeCompositionViteOptions = {
   manifest: RuntimeCompositionManifest;
   environment?: RuntimeEnvironment;
+  injectImportMap?: boolean;
+  externalize?: boolean;
 };
 
 export const createRollupExternal = (
@@ -50,7 +52,13 @@ export const injectRuntimeImportMap = ({
   name: "runtime-module-composition-import-map",
   transformIndexHtml(html) {
     const importMap = createImportMap(manifest, { environment });
-    const script = `<script type="importmap">${JSON.stringify(importMap)}</script>`;
+    const script = `<script type="importmap" data-runtime-module-composition>${JSON.stringify(importMap)}</script>`;
+    const existingImportMap =
+      /<script[^>]*type=["']importmap["'][^>]*data-runtime-module-composition[^>]*>.*?<\/script>/s;
+
+    if (existingImportMap.test(html)) {
+      return html.replace(existingImportMap, script);
+    }
 
     return html.includes("<head>")
       ? html.replace("<head>", `<head>\n    ${script}`)
@@ -58,3 +66,18 @@ export const injectRuntimeImportMap = ({
   },
 });
 
+export const runtimeComposition = (
+  options: RuntimeCompositionViteOptions,
+): Plugin[] => {
+  const plugins: Plugin[] = [];
+
+  if (options.externalize !== false) {
+    plugins.push(externalizeRuntimeComposition(options));
+  }
+
+  if (options.injectImportMap !== false) {
+    plugins.push(injectRuntimeImportMap(options));
+  }
+
+  return plugins;
+};

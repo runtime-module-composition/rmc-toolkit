@@ -19,6 +19,7 @@ export type SliceConfig = {
   route: string | string[];
   specifier: string;
   entry: string;
+  environments?: EnvironmentUrlMap;
   external?: boolean;
 };
 
@@ -57,4 +58,3 @@ export type RuntimeModule = {
 export type RuntimeModuleNamespace = RuntimeModule | { default: RuntimeModule };
 
 export type DynamicImporter = (specifier: string) => Promise<unknown>;
-

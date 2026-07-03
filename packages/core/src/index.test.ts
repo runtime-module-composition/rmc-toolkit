@@ -38,6 +38,29 @@ describe("runtime composition core", () => {
     });
   });
 
+  test("uses environment-specific slice URLs", () => {
+    expect(
+      createImportMap({
+        ...manifest,
+        slices: {
+          search: {
+            route: "/search/*",
+            specifier: "@acme/search",
+            entry: "/search/index.mjs",
+            environments: {
+              development: "http://localhost:5174/src/index.tsx",
+            },
+          },
+        },
+      }, { environment: "development" }),
+    ).toEqual({
+      imports: {
+        react: "https://esm.sh/react@19.2.4",
+        "@acme/search": "http://localhost:5174/src/index.tsx",
+      },
+    });
+  });
+
   test("resolves wildcard routes to the owning slice", () => {
     expect(resolveRoute(manifest, "/search/routes")?.specifier).toBe(
       "@acme/search",
@@ -62,4 +85,3 @@ describe("runtime composition core", () => {
       .toHaveLength(0);
   });
 });
-

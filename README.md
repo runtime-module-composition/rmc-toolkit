@@ -22,6 +22,54 @@ The default root import currently targets the framework-agnostic core:
 import { defineManifest, resolveRoute } from "runtime-module-composition";
 ```
 
+## Vite Local Development With Import Maps
+
+Use environment-specific URLs in the manifest when a slice should resolve to a local Vite dev server during development:
+
+```ts
+// runtime-composition.manifest.ts
+import { defineManifest } from "runtime-module-composition";
+
+export const manifest = defineManifest({
+  namespace: "@acme",
+  assetsOrigin: "https://assets.example.com",
+  shared: {
+    react: "https://esm.sh/react@19.2.4",
+    "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
+  },
+  slices: {
+    search: {
+      route: "/search/*",
+      specifier: "@acme/search",
+      entry: "/search/index.mjs",
+      environments: {
+        development: "http://localhost:5174/src/index.tsx",
+      },
+    },
+  },
+});
+```
+
+Then enable the Vite adapter in the host or local shell:
+
+```ts
+// vite.config.ts
+import { defineConfig } from "vite";
+import { runtimeComposition } from "runtime-module-composition/vite";
+import { manifest } from "./runtime-composition.manifest";
+
+export default defineConfig({
+  plugins: [
+    ...runtimeComposition({
+      manifest,
+      environment: "development",
+    }),
+  ],
+});
+```
+
+The Vite adapter injects an import map into the HTML and externalizes manifest-owned specifiers so Vite does not rewrite or bundle imports that should be resolved by the browser.
+
 ## Status
 
 Early scaffold. The current goal is to prove the package boundaries and keep the core portable before adding framework-specific behavior.
