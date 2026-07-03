@@ -97,6 +97,8 @@ const isExternal = createExternalMatcher(manifest);
 - [`examples/vite-host`](examples/vite-host): a minimal Vite host shell using `runtimeComposition()`. `npm run build` inside this directory produces `dist/index.html` with the import map already present in `<head>`, proving import maps are generated before the browser receives the page rather than injected at runtime.
 - [`examples/react-slice`](examples/react-slice): a minimal slice built with Vite library mode using `createRollupExternal()`. It imports React via the `@esm.sh/react` convention specifier, so `npm run build` inside this directory produces a `dist/index.mjs` that never bundles React — the browser resolves it through the host's import map instead.
 
+These two examples are independent, separately-verified fixtures for two distinct architectural claims — they are not wired together into a working end-to-end demo. `react-slice` exports a plain React component for `DynamicModuleBoundary`, which is a different module contract than `vite-host`'s `loadRuntimeModule()`/`mount()` DOM contract.
+
 ## Development
 
 ```bash
