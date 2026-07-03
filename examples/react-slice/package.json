@@ -1,0 +1,16 @@
+{
+  "name": "@runtime-module-composition/example-react-slice",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@runtime-module-composition/core": "0.1.0",
+    "@runtime-module-composition/vite": "0.1.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}

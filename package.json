@@ -28,7 +28,8 @@
     "README.md"
   ],
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
   "scripts": {
     "build": "tsc -b packages/*",
