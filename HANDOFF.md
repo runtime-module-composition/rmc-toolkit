@@ -2,6 +2,8 @@
 
 Last updated: 2026-07-03
 
+> **Status: superseded.** The convention-first manifest work described below is committed. The escape hatches this doc calls `shared`/`slices`/`routes` were subsequently renamed to `exactImports`/`sliceOverrides`/`routeOverrides` (see git history from `ef264e1` onward), and `examples/vite-host` / `examples/react-slice` (Recommended Next Steps items 3 and 6) now exist. Treat the "Current Core API Intent" and "Recommended Next Steps" sections below as historical context for *why* the API looks the way it does, not as the current field names — read `README.md` and `docs/implementation-guide.md` for the current API surface. Item 7 (publishing strategy) is still an open decision.
+
 ## Repository
 
 - Local package repo: `/Users/angelovagenas/Documents/GitHub/FERRY-RSVP/repositories/runtime-module-composition`
