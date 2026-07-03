@@ -5,16 +5,11 @@ import { includeRuntimeImportMap, runtimeComposition } from "./index.js";
 const manifest = defineManifest({
   namespace: "@acme",
   assetsOrigin: "https://assets.example.com",
-  shared: {
-    react: "https://esm.sh/react@19.2.4",
-  },
-  slices: {
-    search: {
-      route: "/search/*",
-      specifier: "@acme/search",
-      entry: "/search/index.mjs",
-      environments: {
-        development: "http://localhost:5174/src/index.tsx",
+  externalDepsOrigin: "https://esm.sh",
+  environments: {
+    development: {
+      sliceOrigins: {
+        search: "http://localhost:5174",
       },
     },
   },
@@ -37,7 +32,9 @@ describe("vite adapter", () => {
     const html = transformIndexHtml("<html><head></head><body></body></html>");
 
     expect(html).toContain('<script type="importmap" data-runtime-module-composition>');
-    expect(html).toContain('"@acme/search":"http://localhost:5174/src/index.tsx"');
+    expect(html).toContain('"@acme/":"https://assets.example.com/"');
+    expect(html).toContain('"@esm.sh/":"https://esm.sh/"');
+    expect(html).toContain('"@acme/search/":"http://localhost:5174/"');
     expect(html).toContain("</head>");
   });
 

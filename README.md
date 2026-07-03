@@ -24,7 +24,7 @@ import { defineManifest, resolveRoute } from "runtime-module-composition";
 
 ## Vite Local Development With Import Maps
 
-Use environment-specific URLs in the manifest when a slice should resolve to a local Vite dev server during development:
+Use environment-specific origins in the manifest when a slice should resolve to a local Vite dev server during development:
 
 ```ts
 // runtime-composition.manifest.ts
@@ -33,17 +33,11 @@ import { defineManifest } from "runtime-module-composition";
 export const manifest = defineManifest({
   namespace: "@acme",
   assetsOrigin: "https://assets.example.com",
-  shared: {
-    react: "https://esm.sh/react@19.2.4",
-    "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
-  },
-  slices: {
-    search: {
-      route: "/search/*",
-      specifier: "@acme/search",
-      entry: "/search/index.mjs",
-      environments: {
-        development: "http://localhost:5174/src/index.tsx",
+  externalDepsOrigin: "https://esm.sh",
+  environments: {
+    development: {
+      sliceOrigins: {
+        search: "http://localhost:5174",
       },
     },
   },
@@ -90,17 +84,7 @@ import {
 const manifest = {
   namespace: "@acme",
   assetsOrigin: "https://assets.example.com",
-  shared: {
-    react: "https://esm.sh/react@19.2.4",
-    "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
-  },
-  slices: {
-    search: {
-      route: "/search/*",
-      specifier: "@acme/search",
-      entry: "/search/index.mjs",
-    },
-  },
+  externalDepsOrigin: "https://esm.sh",
 };
 
 const importMap = createImportMap(manifest);

@@ -24,7 +24,29 @@ export const validateManifest = (
     });
   }
 
-  for (const [sliceName, slice] of Object.entries(manifest.slices)) {
+  if (
+    manifest.externalDepsOrigin &&
+    !/^https?:\/\//.test(manifest.externalDepsOrigin)
+  ) {
+    diagnostics.push({
+      level: "error",
+      code: "external-deps-origin-url",
+      message: "externalDepsOrigin must be an absolute HTTP(S) URL.",
+    });
+  }
+
+  if (
+    manifest.externalDepsPrefix &&
+    !manifest.externalDepsPrefix.endsWith("/")
+  ) {
+    diagnostics.push({
+      level: "warning",
+      code: "external-deps-prefix-format",
+      message: "externalDepsPrefix should end with / for import-map prefix matching.",
+    });
+  }
+
+  for (const [sliceName, slice] of Object.entries(manifest.slices ?? {})) {
     if (!slice.specifier.startsWith(`${manifest.namespace}/`)) {
       diagnostics.push({
         level: "warning",
@@ -42,6 +64,25 @@ export const validateManifest = (
     }
   }
 
+  for (const [route, override] of Object.entries(manifest.routes ?? {})) {
+    const specifier = typeof override === "string" ? override : override.specifier;
+
+    if (!route.startsWith("/")) {
+      diagnostics.push({
+        level: "warning",
+        code: "route-override-format",
+        message: `Route override "${route}" should start with /.`,
+      });
+    }
+
+    if (!specifier.startsWith(`${manifest.namespace}/`)) {
+      diagnostics.push({
+        level: "warning",
+        code: "route-override-specifier-namespace",
+        message: `Route override "${route}" specifier should start with ${manifest.namespace}/.`,
+      });
+    }
+  }
+
   return diagnostics;
 };
-

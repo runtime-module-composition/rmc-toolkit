@@ -35,17 +35,11 @@ import { defineManifest } from "runtime-module-composition";
 export const manifest = defineManifest({
   namespace: "@acme",
   assetsOrigin: "https://assets.example.com",
-  shared: {
-    react: "https://esm.sh/react@19.2.4",
-    "react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
-  },
-  slices: {
-    search: {
-      route: "/search/*",
-      specifier: "@acme/search",
-      entry: "/search/index.mjs",
-      environments: {
-        development: "http://localhost:5174/src/index.tsx",
+  externalDepsOrigin: "https://esm.sh",
+  environments: {
+    development: {
+      sliceOrigins: {
+        search: "http://localhost:5174",
       },
     },
   },
@@ -55,10 +49,11 @@ export const manifest = defineManifest({
 Implementation notes:
 
 - `namespace` is the bare module namespace owned by your composed application.
-- `assetsOrigin` is the production asset host for relative slice entries.
-- `shared` defines dependencies owned by the import map.
-- `slices` defines route ownership and module entry points.
-- `environments` lets local development resolve a slice to a dev server URL.
+- `assetsOrigin` is the production asset host for conventionally resolved slice modules.
+- `externalDepsOrigin` is the origin for external dependency specifiers. By default, it maps the `@esm.sh/` prefix to this origin.
+- `entryFile` defaults to `index.mjs`, so `/search/routes` resolves to `@acme/search/index.mjs`.
+- `environments.development.sliceOrigins` lets local development map one slice prefix to a dev server.
+- `routes` and `slices` are optional escape hatches for nonstandard cases.
 
 ### `createImportMap(manifest, options)`
 
@@ -81,10 +76,10 @@ Implementation notes:
 - Import maps must be present in the initial HTML before any dependent module scripts execute.
 - Do not add the import map after app startup with DOM APIs such as `document.head.append()`.
 - In Vite projects, prefer `runtimeComposition()` or `includeRuntimeImportMap()` so the HTML is transformed before the browser receives it.
-- Production slice URLs come from `assetsOrigin + entry`.
-- Absolute `entry` URLs are used as-is.
-- `shared` dependencies can provide environment-specific URLs.
-- Slice `environments` override the normal `entry` URL for a given environment.
+- Production slice URLs resolve through the namespace prefix, such as `@acme/` to `https://assets.example.com/`.
+- External dependencies resolve through `externalDepsPrefix`, which defaults to `@esm.sh/`.
+- Environment origins override production origins for local development or preview deployments.
+- `sliceOrigins` adds more specific import-map prefixes, such as `@acme/search/` to `http://localhost:5174/`.
 - Non-Vite build systems should generate the import-map script during their HTML build step.
 
 ### `resolveRoute(manifest, path)`
@@ -104,10 +99,10 @@ if (match) {
 
 Implementation notes:
 
-- Exact routes beat wildcard routes.
-- Wildcards use the `/prefix/*` pattern.
-- The returned `specifier` is what the browser resolves through the import map.
-- Return value is `null` when no slice owns the route.
+- By default, the first URL segment becomes the slice name.
+- `/search/routes` resolves to `@acme/search/index.mjs` when `entryFile` is not customized.
+- Explicit `routes` overrides beat convention-based resolution.
+- Return value is `null` for `/` unless a route override is configured.
 
 ### `listExternalSpecifiers(manifest)`
 
@@ -121,9 +116,10 @@ const externals = listExternalSpecifiers(manifest);
 
 Implementation notes:
 
-- Shared dependencies are external by default.
-- Slices are external by default.
-- Set `external: false` on a shared dependency or slice to exclude it from the list.
+- The namespace prefix, such as `@acme/`, is external by default.
+- The external dependency prefix, such as `@esm.sh/`, is external when `externalDepsOrigin` is configured.
+- Explicit `shared` dependencies and `slices` are also external by default when configured.
+- Set `external: false` on an explicit shared dependency or slice to exclude it from the list.
 - Build adapters use this indirectly through `createExternalMatcher()`.
 
 ### `createExternalMatcher(manifest)`
@@ -146,8 +142,9 @@ export default {
 
 Implementation notes:
 
-- Exact shared dependency and slice specifiers are matched.
-- Any specifier under the manifest namespace, such as `@acme/anything`, is also matched.
+- Any specifier under the manifest namespace, such as `@acme/search/index.mjs`, is matched.
+- Any specifier under the external dependency prefix, such as `@esm.sh/react`, is matched when `externalDepsOrigin` is configured.
+- Explicit shared dependency and slice specifiers are also matched when configured.
 - This keeps import-map-owned modules out of slice bundles.
 
 ### `loadRuntimeModule(specifier, importer)`
@@ -157,7 +154,7 @@ Use `loadRuntimeModule()` when working with the framework-agnostic DOM module co
 ```ts
 import { loadRuntimeModule } from "runtime-module-composition/core";
 
-const module = await loadRuntimeModule("@acme/search");
+const module = await loadRuntimeModule("@acme/search/index.mjs");
 await module.mount(document.getElementById("slot")!);
 ```
 
@@ -175,7 +172,7 @@ Use `unwrapRuntimeModule()` when you already have a module namespace and need to
 ```ts
 import { unwrapRuntimeModule } from "runtime-module-composition/core";
 
-const namespace = await import("@acme/search");
+const namespace = await import("@acme/search/index.mjs");
 const module = unwrapRuntimeModule(namespace);
 ```
 
@@ -203,8 +200,9 @@ if (errors.length > 0) {
 Implementation notes:
 
 - Invalid `assetsOrigin` values are errors.
-- Namespace and slice specifier mismatches are warnings.
-- Slice entries that do not look like ESM assets are warnings unless they are absolute URLs.
+- Invalid `externalDepsOrigin` values are errors.
+- Namespace, external dependency prefix, route override, and explicit slice mismatches are warnings.
+- Explicit slice entries that do not look like ESM assets are warnings unless they are absolute URLs.
 - Keep this in CI once the manifest becomes a release contract.
 
 ### URL Helpers
@@ -334,7 +332,7 @@ export default defineConfig({
 
 Implementation notes:
 
-- Use this in slice builds so shared dependencies are not bundled.
+- Use this in slice builds so import-map-owned dependencies are not bundled.
 - The predicate is generated from the same manifest that creates the import map.
 - This is the main mechanism that prevents import-map/build-rule drift.
 

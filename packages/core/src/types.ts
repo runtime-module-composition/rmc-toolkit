@@ -23,16 +23,34 @@ export type SliceConfig = {
   external?: boolean;
 };
 
+export type RouteOverrideConfig =
+  | string
+  | {
+      specifier: string;
+      route?: string | string[];
+    };
+
+export type EnvironmentConfig = {
+  assetsOrigin?: string;
+  externalDepsOrigin?: string;
+  sliceOrigins?: Record<string, string>;
+};
+
 export type RuntimeCompositionManifest = {
   namespace: string;
   assetsOrigin: string;
+  externalDepsOrigin?: string;
+  externalDepsPrefix?: string;
+  entryFile?: string;
+  environments?: Partial<Record<RuntimeEnvironment, EnvironmentConfig>>;
   shared?: Record<string, SharedDependencyConfig>;
-  slices: Record<string, SliceConfig>;
+  slices?: Record<string, SliceConfig>;
+  routes?: Record<string, RouteOverrideConfig>;
 };
 
 export type RuntimeRouteMatch = {
   sliceName: string;
-  slice: SliceConfig;
+  slice?: SliceConfig;
   specifier: string;
   route: string;
   params: Record<string, string>;
