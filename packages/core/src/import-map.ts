@@ -118,6 +118,8 @@ export const createImportMap = (
   return { imports };
 };
 
+// Note: options.devDeps has no effect here — dev-mode is always resolved at
+// runtime via the generated script's own `?dev` detection, not baked in here.
 export const createImportMapBootstrapScript = (
   manifest: RuntimeCompositionManifest,
   options: CreateImportMapOptions = {},

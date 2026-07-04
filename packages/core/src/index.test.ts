@@ -258,4 +258,42 @@ describe("runtime composition core", () => {
     expect(script).toContain("document.head.appendChild(script)");
     expect(script).toContain('script.type = "importmap"');
   });
+
+  test("createImportMapBootstrapScript's embedded dev-flag logic matches createImportMap's own devDeps behavior", () => {
+    const manifestWithExternalDeps = {
+      ...manifest,
+      externalDeps: ["zustand"],
+      defaultPeerDeps: { react: "19.2.4" },
+    };
+
+    const expectedWithDevDeps = createImportMap(manifestWithExternalDeps, {
+      devDeps: true,
+    }).imports;
+
+    const script = createImportMapBootstrapScript(manifestWithExternalDeps);
+
+    // Simulate the generated script running with a `?dev` script src, using
+    // the same DOM-shape the real browser execution relies on.
+    const documentStub = {
+      currentScript: { src: "http://localhost/importmap.js?dev" },
+      createElement: () => ({}),
+      head: { appendChild: (el: { textContent?: string }) => {
+        (documentStub as unknown as { result: string | undefined }).result =
+          el.textContent;
+      } },
+    };
+    const windowStub = { location: { origin: "http://localhost" } };
+
+    const run = new Function("document", "window", "URL", script);
+    run(documentStub, windowStub, URL);
+
+    const producedImports = JSON.parse(
+      (documentStub as unknown as { result: string }).result,
+    ).imports;
+
+    expect(producedImports["@esm.sh/zustand"]).toBe(
+      expectedWithDevDeps["@esm.sh/zustand"],
+    );
+    expect(producedImports["@esm.sh/"]).toBe(expectedWithDevDeps["@esm.sh/"]);
+  });
 });
