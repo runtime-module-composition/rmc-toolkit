@@ -81,5 +81,8 @@ describe("defineSliceBuild", () => {
     expect(lib.entry).toBe("src/index.tsx");
     expect(lib.formats).toEqual(["es"]);
     expect(typeof lib.fileName).toBe("function");
+    if (typeof lib.fileName === "function") {
+      expect(lib.fileName("es", "index")).toBe("index.mjs");
+    }
   });
 });

@@ -29,6 +29,8 @@ export type SliceBuildOptions = {
 export const defineSliceBuild = (options: SliceBuildOptions): UserConfig => {
   const resolvedEntry = resolveEntry(process.cwd(), options.entry);
 
+  // Any mode other than "development" (production, or a custom mode) is
+  // treated as a real build and gets the full library-build config below.
   if (options.mode === "development") {
     return { server: { port: options.devPort } };
   }
