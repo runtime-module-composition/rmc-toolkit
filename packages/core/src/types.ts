@@ -73,6 +73,4 @@ export type RuntimeModule = {
   unmount?(): void | Promise<void>;
 };
 
-export type RuntimeModuleNamespace = RuntimeModule | { default: RuntimeModule };
-
 export type DynamicImporter = (specifier: string) => Promise<unknown>;
