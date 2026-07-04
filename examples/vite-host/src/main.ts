@@ -1,4 +1,9 @@
-import { loadRuntimeModule, resolveRoute } from "@runtime-module-composition/core";
+import {
+  importModule,
+  resolveRoute,
+  unwrapDefault,
+  type RuntimeModule,
+} from "@runtime-module-composition/core";
 import { manifest } from "../runtime-composition.manifest.js";
 
 const bootstrap = async (): Promise<void> => {
@@ -12,7 +17,9 @@ const bootstrap = async (): Promise<void> => {
     return;
   }
 
-  const runtimeModule = await loadRuntimeModule(match.specifier);
+  const runtimeModule = unwrapDefault(
+    await importModule(match.specifier),
+  ) as RuntimeModule;
   await runtimeModule.mount(target, { route: match, manifest });
 };
 

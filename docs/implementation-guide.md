@@ -11,10 +11,10 @@ import {
   createExternalMatcher,
   createImportMap,
   defineManifest,
+  importModule,
   listExternalSpecifiers,
-  loadRuntimeModule,
   resolveRoute,
-  unwrapRuntimeModule,
+  unwrapDefault,
   validateManifest,
 } from "runtime-module-composition/core";
 ```
@@ -147,40 +147,39 @@ Implementation notes:
 - Explicit `exactImports` and `sliceOverrides` specifiers are also matched when configured.
 - This keeps import-map-owned modules out of slice bundles.
 
-### `loadRuntimeModule(specifier, importer)`
+### `importModule(specifier, importer)`
 
-Use `loadRuntimeModule()` when working with the framework-agnostic DOM module contract.
+Use `importModule()` to dynamically load a module by specifier. It has no opinion about what the module exports — it's a thin, injectable wrapper around dynamic `import()`.
 
 ```ts
-import { loadRuntimeModule } from "runtime-module-composition/core";
+import { importModule } from "runtime-module-composition/core";
 
-const module = await loadRuntimeModule("@acme/search/index.mjs");
-await module.mount(document.getElementById("slot")!);
+const namespace = await importModule("@acme/search/index.mjs");
 ```
 
 Implementation notes:
 
 - The default importer calls native dynamic `import()`.
-- The loaded module must export a `mount(target, context?)` function, either directly or as default.
-- Pass a custom `importer` in tests or in hosts that need custom loading behavior.
-- React users usually use `DynamicModuleBoundary()` instead.
+- Pass a custom `importer` in tests, or in hosts that need custom loading behavior.
+- Returns the raw module namespace, unmodified — this is deliberate, since some consumers (e.g. `React.lazy()`) need the namespace as-is, not unwrapped.
+- React users usually use `DynamicModuleBoundary()` instead, which already uses `importModule()` internally.
 
-### `unwrapRuntimeModule(value)`
+### `unwrapDefault(moduleNamespace)`
 
-Use `unwrapRuntimeModule()` when you already have a module namespace and need to validate the DOM module contract.
+Use `unwrapDefault()` when you have a module namespace from `importModule()` (or `import()`) and want its default export, if any.
 
 ```ts
-import { unwrapRuntimeModule } from "runtime-module-composition/core";
+import { importModule, unwrapDefault } from "runtime-module-composition/core";
 
-const namespace = await import("@acme/search/index.mjs");
-const module = unwrapRuntimeModule(namespace);
+const namespace = await importModule("@acme/search/index.mjs");
+const exported = unwrapDefault(namespace);
 ```
 
 Implementation notes:
 
-- Accepts either `{ mount }` or `{ default: { mount } }`.
-- Throws a `TypeError` if the module does not expose `mount()`.
-- Useful for tests, custom loaders, and diagnostic tooling.
+- Returns `namespace.default` if the namespace has a `default` export, otherwise returns the namespace itself.
+- Does not validate or assume any particular shape for the result — pair it with your own convention. `RuntimeModule` (`{ mount(target, context), unmount?() }`) is one such convention a host can choose to require, but it isn't enforced here.
+- Useful for hosts using the optional DOM `mount()` convention; not needed for React's `DynamicModuleBoundary()`, which needs the un-unwrapped namespace for `React.lazy()`.
 
 ### `validateManifest(manifest)`
 
@@ -387,4 +386,4 @@ Implementation notes:
 3. Generate the browser import map with `createImportMap()` or Vite `runtimeComposition()`.
 4. Use `createRollupExternal()` in slice production builds.
 5. Resolve routes with `resolveRoute()` in the host shell.
-6. Load the resolved slice with a framework adapter, such as `DynamicModuleBoundary()`, or with the DOM contract via `loadRuntimeModule()`.
+6. Load the resolved slice with a framework adapter, such as `DynamicModuleBoundary()`, or directly via `importModule()` and `unwrapDefault()` using whatever convention your host chooses (e.g. the optional `RuntimeModule.mount()` contract).
