@@ -3,11 +3,11 @@ import { importModule, unwrapDefault } from "./loader.js";
 
 describe("importModule", () => {
   test("uses the default importer to call native dynamic import", async () => {
-    const namespace = (await importModule("./manifest.js")) as Record<
-      string,
-      unknown
-    >;
-    expect(typeof namespace.defineManifest).toBe("function");
+    const namespace = (await importModule(
+      "./__fixtures__/dummy-module.js",
+    )) as Record<string, unknown>;
+    expect(namespace.default).toBe("default-value");
+    expect(namespace.namedExport).toBe("named-value");
   });
 
   test("uses a custom importer when provided", async () => {

@@ -2,7 +2,8 @@ import type { DynamicImporter } from "./types.js";
 
 export const importModule = (
   specifier: string,
-  importer: DynamicImporter = (s) => import(/* @vite-ignore */ s),
+  importer: DynamicImporter = (specifier) =>
+    import(/* @vite-ignore */ specifier),
 ): Promise<unknown> => importer(specifier);
 
 export const unwrapDefault = (moduleNamespace: unknown): unknown =>
