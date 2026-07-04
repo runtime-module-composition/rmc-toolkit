@@ -1,6 +1,7 @@
 import {
   createExternalMatcher,
   createImportMap,
+  createImportMapBootstrapScript,
   type RuntimeCompositionManifest,
   type RuntimeEnvironment,
 } from "@runtime-module-composition/core";
@@ -81,3 +82,54 @@ export const runtimeComposition = (
 
   return plugins;
 };
+
+export type LocalSliceOverride = {
+  name: string;
+  port: number;
+};
+
+export const buildLocalImportMapScript = (
+  manifest: RuntimeCompositionManifest,
+  localSlice: LocalSliceOverride,
+): string => {
+  const derivedManifest: RuntimeCompositionManifest = {
+    ...manifest,
+    environments: {
+      ...manifest.environments,
+      development: {
+        ...manifest.environments?.development,
+        sliceOrigins: {
+          ...manifest.environments?.development?.sliceOrigins,
+          [localSlice.name]: `http://localhost:${localSlice.port}`,
+        },
+      },
+    },
+  };
+
+  return createImportMapBootstrapScript(derivedManifest, {
+    environment: "development",
+  });
+};
+
+export type IncludeHostedImportMapOptions = {
+  manifest: RuntimeCompositionManifest;
+  path?: string;
+  localSlice?: LocalSliceOverride;
+};
+
+export const includeHostedImportMap = ({
+  manifest,
+  path = "/js/importmap.js",
+  localSlice,
+}: IncludeHostedImportMapOptions): Plugin => ({
+  name: "runtime-module-composition-hosted-import-map",
+  configureServer(server) {
+    server.middlewares.use(path, (_req, res) => {
+      const script = localSlice
+        ? buildLocalImportMapScript(manifest, localSlice)
+        : createImportMapBootstrapScript(manifest, { environment: "development" });
+      res.setHeader("Content-Type", "text/javascript");
+      res.end(script);
+    });
+  },
+});
