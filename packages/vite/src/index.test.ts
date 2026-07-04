@@ -2,6 +2,7 @@ import { defineManifest } from "@runtime-module-composition/core";
 import { describe, expect, test } from "vitest";
 import {
   buildLocalImportMapScript,
+  defineSliceBuild,
   includeHostedImportMap,
   includeRuntimeImportMap,
   runtimeComposition,
@@ -52,6 +53,16 @@ describe("vite adapter", () => {
     expect(plugins.map((plugin) => plugin.name)).toEqual([
       "runtime-module-composition-externalize",
     ]);
+  });
+
+  test("re-exports defineSliceBuild from the public barrel", () => {
+    const config = defineSliceBuild({
+      mode: "development",
+      devPort: 5301,
+      entry: "src/index.ts",
+    });
+
+    expect(config).toEqual({ server: { port: 5301 } });
   });
 });
 

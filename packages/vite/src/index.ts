@@ -157,3 +157,5 @@ export const includeHostedImportMap = ({
     });
   },
 });
+
+export { defineSliceBuild, type SliceBuildOptions } from "./slice-build.js";
