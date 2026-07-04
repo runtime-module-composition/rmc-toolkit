@@ -124,7 +124,31 @@ export const includeHostedImportMap = ({
 }: IncludeHostedImportMapOptions): Plugin => ({
   name: "runtime-module-composition-hosted-import-map",
   configureServer(server) {
-    server.middlewares.use(path, (_req, res) => {
+    server.middlewares.use(path, (req, res, next) => {
+      // Connect (which Vite's dev server middlewares are built on) mounts
+      // handlers by path *prefix*: it matches any request whose pathname
+      // starts with `path` and is followed by end-of-string, "/", or ".",
+      // then strips the matched prefix from `req.url` before invoking the
+      // handler. That means req.url here is *relative to the mount point*,
+      // and a request for "/js/importmap.js.map" or
+      // "/js/importmap.js/anything" also reaches this handler (as
+      // req.url === "/.map" or "/anything"), not just the exact endpoint.
+      // Comparing req.url against the outer `path` would never match,
+      // since Connect has already removed that prefix — the only way to
+      // detect "this is genuinely the exact endpoint" is to check that the
+      // remaining, query-stripped req.url is empty or "/".
+      const method = req.method ?? "GET";
+      if (method !== "GET" && method !== "HEAD") {
+        next();
+        return;
+      }
+
+      const remainder = (req.url ?? "/").split("?")[0] ?? "/";
+      if (remainder !== "" && remainder !== "/") {
+        next();
+        return;
+      }
+
       const script = localSlice
         ? buildLocalImportMapScript(manifest, localSlice)
         : createImportMapBootstrapScript(manifest, { environment: "development" });
