@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
-import { resolveEntry } from "./slice-build.js";
+import { defineSliceBuild, resolveEntry } from "./slice-build.js";
 
 let tempDir: string | null = null;
 
@@ -48,5 +48,38 @@ describe("resolveEntry", () => {
     expect(() => resolveEntry(dir)).toThrow(
       "defineSliceBuild: could not find src/index.tsx or src/index.ts. Pass an explicit `entry` option if this slice uses a non-standard layout.",
     );
+  });
+});
+
+describe("defineSliceBuild", () => {
+  test("dev mode returns only the server port", () => {
+    const config = defineSliceBuild({
+      mode: "development",
+      devPort: 5301,
+      entry: "src/index.tsx",
+    });
+
+    expect(config).toEqual({ server: { port: 5301 } });
+  });
+
+  test("build mode returns preview/define/build.lib with the resolved entry", () => {
+    const config = defineSliceBuild({
+      mode: "production",
+      devPort: 5301,
+      entry: "src/index.tsx",
+    });
+
+    expect(config.preview).toEqual({ cors: true });
+    expect(config.define).toEqual({
+      "process.env.NODE_ENV": JSON.stringify("production"),
+    });
+
+    const lib = config.build?.lib;
+    if (!lib) {
+      throw new TypeError("Expected config.build.lib to be defined.");
+    }
+    expect(lib.entry).toBe("src/index.tsx");
+    expect(lib.formats).toEqual(["es"]);
+    expect(typeof lib.fileName).toBe("function");
   });
 });
