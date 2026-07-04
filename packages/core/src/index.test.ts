@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   createExternalMatcher,
   createImportMap,
+  createImportMapBootstrapScript,
   defineManifest,
   resolveRoute,
   validateManifest,
@@ -229,5 +230,32 @@ describe("runtime composition core", () => {
     expect(
       validateManifest(manifest).filter((item) => item.level === "error"),
     ).toHaveLength(0);
+  });
+
+  test("createImportMapBootstrapScript generates valid, parseable JavaScript", () => {
+    const script = createImportMapBootstrapScript(manifest);
+    expect(() => new Function(script)).not.toThrow();
+  });
+
+  test("createImportMapBootstrapScript embeds the computed import map", () => {
+    const script = createImportMapBootstrapScript(manifest);
+    expect(script).toContain('"@acme/":"https://assets.example.com/"');
+    expect(script).toContain('"@esm.sh/":"https://esm.sh/"');
+  });
+
+  test("createImportMapBootstrapScript embeds the manifest's own external dependency configuration, not hardcoded esm.sh defaults", () => {
+    const script = createImportMapBootstrapScript({
+      ...manifest,
+      externalDepsOrigin: "https://cdn.example.org",
+      externalDepsPrefix: "@cdn/",
+    });
+    expect(script).toContain("https://cdn.example.org");
+    expect(script).not.toContain("esm.sh");
+  });
+
+  test("createImportMapBootstrapScript injects an importmap script via document.head.appendChild", () => {
+    const script = createImportMapBootstrapScript(manifest);
+    expect(script).toContain("document.head.appendChild(script)");
+    expect(script).toContain('script.type = "importmap"');
   });
 });

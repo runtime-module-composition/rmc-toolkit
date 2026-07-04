@@ -117,3 +117,48 @@ export const createImportMap = (
 
   return { imports };
 };
+
+export const createImportMapBootstrapScript = (
+  manifest: RuntimeCompositionManifest,
+  options: CreateImportMapOptions = {},
+): string => {
+  const environment = options.environment ?? "production";
+  const { imports } = createImportMap(manifest, { environment });
+  const externalDepsOrigin = resolveExternalDepsOrigin(manifest, environment) ?? "";
+
+  return `(function () {
+  var importMap = ${JSON.stringify({ imports })};
+  var externalDepsOrigin = ${JSON.stringify(externalDepsOrigin)};
+
+  var currentScript = document.currentScript;
+  var isDev = false;
+  if (currentScript) {
+    var scriptUrl = new URL(currentScript.src, window.location.origin);
+    isDev = scriptUrl.searchParams.has("dev");
+  }
+
+  var addDevFlag = function (specifier, value) {
+    if (
+      !isDev ||
+      specifier.slice(-1) === "/" ||
+      !externalDepsOrigin ||
+      typeof value !== "string" ||
+      value.indexOf(externalDepsOrigin) !== 0
+    ) {
+      return value;
+    }
+    return value.indexOf("?") !== -1 ? value + "&dev" : value + "?dev";
+  };
+
+  var adjustedImports = {};
+  Object.keys(importMap.imports).forEach(function (specifier) {
+    adjustedImports[specifier] = addDevFlag(specifier, importMap.imports[specifier]);
+  });
+
+  var script = document.createElement("script");
+  script.type = "importmap";
+  script.textContent = JSON.stringify({ imports: adjustedImports });
+  document.head.appendChild(script);
+})();
+`;
+};
