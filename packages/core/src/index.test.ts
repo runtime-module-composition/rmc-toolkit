@@ -66,6 +66,94 @@ describe("runtime composition core", () => {
     });
   });
 
+  test("generates externalDeps entries with defaultPeerDeps applied to bare strings", () => {
+    expect(
+      createImportMap({
+        ...manifest,
+        externalDeps: ["zustand"],
+        defaultPeerDeps: { react: "19.2.4" },
+      }),
+    ).toEqual({
+      imports: {
+        "@acme/": "https://assets.example.com/",
+        "@esm.sh/": "https://esm.sh/",
+        "@esm.sh/zustand": "https://esm.sh/zustand?deps=react@19.2.4",
+      },
+    });
+  });
+
+  test("supports externalDeps entries that opt out of peerDeps", () => {
+    expect(
+      createImportMap({
+        ...manifest,
+        externalDeps: [{ name: "date-fns", peerDeps: false }],
+        defaultPeerDeps: { react: "19.2.4" },
+      }),
+    ).toEqual({
+      imports: {
+        "@acme/": "https://assets.example.com/",
+        "@esm.sh/": "https://esm.sh/",
+        "@esm.sh/date-fns": "https://esm.sh/date-fns",
+      },
+    });
+  });
+
+  test("supports externalDeps entries with a custom peerDeps override", () => {
+    expect(
+      createImportMap({
+        ...manifest,
+        externalDeps: [
+          {
+            name: "@radix-ui/themes",
+            peerDeps: { react: "19.2.4", "react-dom": "19.2.4/client" },
+          },
+        ],
+        defaultPeerDeps: { react: "19.2.4" },
+      }),
+    ).toEqual({
+      imports: {
+        "@acme/": "https://assets.example.com/",
+        "@esm.sh/": "https://esm.sh/",
+        "@esm.sh/@radix-ui/themes":
+          "https://esm.sh/@radix-ui/themes?deps=react@19.2.4,react-dom@19.2.4/client",
+      },
+    });
+  });
+
+  test("devDeps appends ?dev to exact external entries but not the catch-all prefix", () => {
+    expect(
+      createImportMap(
+        {
+          ...manifest,
+          externalDeps: ["zustand"],
+          defaultPeerDeps: { react: "19.2.4" },
+        },
+        { devDeps: true },
+      ),
+    ).toEqual({
+      imports: {
+        "@acme/": "https://assets.example.com/",
+        "@esm.sh/": "https://esm.sh/",
+        "@esm.sh/zustand": "https://esm.sh/zustand?deps=react@19.2.4&dev",
+      },
+    });
+  });
+
+  test("bare-string externalDeps entries resolve with no ?deps= query when defaultPeerDeps is unset", () => {
+    expect(
+      createImportMap({
+        ...manifest,
+        externalDeps: ["zustand"],
+      }),
+    ).toEqual({
+      imports: {
+        "@acme/": "https://assets.example.com/",
+        "@esm.sh/": "https://esm.sh/",
+        "@esm.sh/zustand": "https://esm.sh/zustand",
+      },
+    });
+  });
+
   test("resolves routes by convention without explicit slice config", () => {
     expect(resolveRoute(manifest, "/search/routes")?.specifier).toBe(
       "@acme/search/index.mjs",

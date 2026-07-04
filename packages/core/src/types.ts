@@ -36,6 +36,13 @@ export type EnvironmentConfig = {
   sliceOrigins?: Record<string, string>;
 };
 
+export type ExternalDepEntry =
+  | string
+  | {
+      name: string;
+      peerDeps?: Record<string, string> | false;
+    };
+
 export type RuntimeCompositionManifest = {
   namespace: string;
   assetsOrigin: string;
@@ -46,6 +53,8 @@ export type RuntimeCompositionManifest = {
   exactImports?: Record<string, SharedDependencyConfig>;
   sliceOverrides?: Record<string, SliceConfig>;
   routeOverrides?: Record<string, RouteOverrideConfig>;
+  externalDeps?: ExternalDepEntry[];
+  defaultPeerDeps?: Record<string, string>;
 };
 
 export type RuntimeRouteMatch = {
