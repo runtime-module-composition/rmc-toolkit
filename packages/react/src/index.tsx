@@ -1,4 +1,5 @@
 import {
+  importModule,
   type DynamicImporter,
   type RuntimeModuleContext,
 } from "@runtime-module-composition/core";
@@ -39,8 +40,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-const defaultImporter: DynamicImporter = (specifier) =>
-  import(/* @vite-ignore */ specifier);
+const defaultImporter: DynamicImporter = importModule;
 
 export const DynamicModuleBoundary = ({
   specifier,
