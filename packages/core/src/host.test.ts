@@ -100,7 +100,7 @@ describe("createRuntimeHost", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     const [error, path] = onError.mock.calls[0] as [unknown, string];
     expect(error).toBeInstanceOf(Error);
-    expect((error as Error).message).toContain("/");
+    expect((error as Error).message).toBe("No slice matches /");
     expect(path).toBe("/");
   });
 
