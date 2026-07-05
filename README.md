@@ -4,22 +4,12 @@ Runtime Module Composition is a small toolkit for building import-map-based micr
 
 The project is intentionally split into a framework-agnostic core plus adapters:
 
-- `@runtime-module-composition/core`: manifest, import map, route resolution, validation, and dynamic module loading primitives.
-- `@runtime-module-composition/vite`: Vite/Rollup helpers for externalizing import-map-owned dependencies and generating HTML with import maps before module execution.
-- `@runtime-module-composition/react`: React boundary for rendering dynamically imported module components.
+- `@rmc-toolkit/core`: manifest, import map, route resolution, validation, and dynamic module loading primitives.
+- `@rmc-toolkit/vite`: Vite/Rollup helpers for externalizing import-map-owned dependencies and generating HTML with import maps before module execution.
+- `@rmc-toolkit/react`: React boundary for rendering dynamically imported module components.
 
-The root package also exposes subpath imports:
-
-```ts
-import { createImportMap } from "runtime-module-composition/core";
-import { externalizeRuntimeComposition } from "runtime-module-composition/vite";
-import { DynamicModuleBoundary } from "runtime-module-composition/react";
-```
-
-The default root import currently targets the framework-agnostic core:
-
-```ts
-import { defineManifest, resolveRoute } from "runtime-module-composition";
+```bash
+npm install @rmc-toolkit/core @rmc-toolkit/vite @rmc-toolkit/react
 ```
 
 ## Vite Local Development With Import Maps
@@ -28,7 +18,7 @@ Use environment-specific origins in the manifest when a slice should resolve to 
 
 ```ts
 // runtime-composition.manifest.ts
-import { defineManifest } from "runtime-module-composition";
+import { defineManifest } from "@rmc-toolkit/core";
 
 export const manifest = defineManifest({
   namespace: "@acme",
@@ -49,7 +39,7 @@ Then enable the Vite adapter in the host or local shell:
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import { runtimeComposition } from "runtime-module-composition/vite";
+import { runtimeComposition } from "@rmc-toolkit/vite";
 import { manifest } from "./runtime-composition.manifest";
 
 export default defineConfig({
@@ -79,7 +69,7 @@ import {
   createExternalMatcher,
   createImportMap,
   resolveRoute,
-} from "@runtime-module-composition/core";
+} from "@rmc-toolkit/core";
 
 const manifest = {
   namespace: "@acme",

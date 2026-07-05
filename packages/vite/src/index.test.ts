@@ -1,4 +1,4 @@
-import { defineManifest } from "@runtime-module-composition/core";
+import { defineManifest } from "@rmc-toolkit/core";
 import { describe, expect, test } from "vitest";
 import {
   buildLocalImportMapScript,

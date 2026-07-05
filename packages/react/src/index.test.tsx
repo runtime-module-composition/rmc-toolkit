@@ -8,7 +8,7 @@ const mockImportModule = vi.fn(async () => ({
   default: FixtureComponent,
 }));
 
-vi.mock("@runtime-module-composition/core", () => ({
+vi.mock("@rmc-toolkit/core", () => ({
   importModule: mockImportModule,
 }));
 

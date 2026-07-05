@@ -1,5 +1,5 @@
 import React from "@esm.sh/react";
-import type { RuntimeModuleContext } from "@runtime-module-composition/core";
+import type { RuntimeModuleContext } from "@rmc-toolkit/core";
 
 // React.createElement instead of JSX here to avoid needing a JSX runtime
 // configured for this minimal fixture — real slices typically use JSX.

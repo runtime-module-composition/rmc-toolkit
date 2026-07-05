@@ -2,7 +2,7 @@ import {
   importModule,
   type DynamicImporter,
   type RuntimeModuleContext,
-} from "@runtime-module-composition/core";
+} from "@rmc-toolkit/core";
 import React from "react";
 
 type ReactRuntimeModule = {

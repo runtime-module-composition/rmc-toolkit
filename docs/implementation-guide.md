@@ -16,13 +16,13 @@ import {
   resolveRoute,
   unwrapDefault,
   validateManifest,
-} from "runtime-module-composition/core";
+} from "@rmc-toolkit/core";
 ```
 
 The root import also targets core:
 
 ```ts
-import { defineManifest, createImportMap } from "runtime-module-composition";
+import { defineManifest, createImportMap } from "@rmc-toolkit/core";
 ```
 
 ### `defineManifest(manifest)`
@@ -30,7 +30,7 @@ import { defineManifest, createImportMap } from "runtime-module-composition";
 Use `defineManifest()` to declare the composition contract for a host application. It preserves the exact TypeScript shape of your manifest while ensuring it satisfies `RuntimeCompositionManifest`.
 
 ```ts
-import { defineManifest } from "runtime-module-composition";
+import { defineManifest } from "@rmc-toolkit/core";
 
 export const manifest = defineManifest({
   namespace: "@acme",
@@ -60,7 +60,7 @@ Implementation notes:
 Use `createImportMap()` when the host needs a browser import map generated from the manifest.
 
 ```ts
-import { createImportMap } from "runtime-module-composition/core";
+import { createImportMap } from "@rmc-toolkit/core";
 import { manifest } from "./runtime-composition.manifest";
 
 const importMap = createImportMap(manifest, {
@@ -87,7 +87,7 @@ Implementation notes:
 Use `resolveRoute()` in the host shell to map the current URL to the slice that owns it.
 
 ```ts
-import { resolveRoute } from "runtime-module-composition/core";
+import { resolveRoute } from "@rmc-toolkit/core";
 import { manifest } from "./runtime-composition.manifest";
 
 const match = resolveRoute(manifest, window.location.pathname);
@@ -109,7 +109,7 @@ Implementation notes:
 Use `listExternalSpecifiers()` when you need a concrete list of import-map-owned specifiers.
 
 ```ts
-import { listExternalSpecifiers } from "runtime-module-composition/core";
+import { listExternalSpecifiers } from "@rmc-toolkit/core";
 
 const externals = listExternalSpecifiers(manifest);
 ```
@@ -127,7 +127,7 @@ Implementation notes:
 Use `createExternalMatcher()` to create a Rollup/Vite-compatible external predicate from the manifest.
 
 ```ts
-import { createExternalMatcher } from "runtime-module-composition/core";
+import { createExternalMatcher } from "@rmc-toolkit/core";
 
 const isExternal = createExternalMatcher(manifest);
 
@@ -152,7 +152,7 @@ Implementation notes:
 Use `importModule()` to dynamically load a module by specifier. It has no opinion about what the module exports — it's a thin, injectable wrapper around dynamic `import()`.
 
 ```ts
-import { importModule } from "runtime-module-composition/core";
+import { importModule } from "@rmc-toolkit/core";
 
 const namespace = await importModule("@acme/search/index.mjs");
 ```
@@ -169,7 +169,7 @@ Implementation notes:
 Use `unwrapDefault()` when you have a module namespace from `importModule()` (or `import()`) and want its default export, if any.
 
 ```ts
-import { importModule, unwrapDefault } from "runtime-module-composition/core";
+import { importModule, unwrapDefault } from "@rmc-toolkit/core";
 
 const namespace = await importModule("@acme/search/index.mjs");
 const exported = unwrapDefault(namespace);
@@ -186,7 +186,7 @@ Implementation notes:
 Use `validateManifest()` in CI, tests, or startup diagnostics to catch manifest drift early.
 
 ```ts
-import { validateManifest } from "runtime-module-composition/core";
+import { validateManifest } from "@rmc-toolkit/core";
 
 const diagnostics = validateManifest(manifest);
 const errors = diagnostics.filter((item) => item.level === "error");
@@ -213,7 +213,7 @@ import {
   joinUrl,
   trimLeadingSlash,
   trimTrailingSlash,
-} from "runtime-module-composition/core";
+} from "@rmc-toolkit/core";
 ```
 
 Implementation notes:
@@ -231,7 +231,7 @@ import {
   externalizeRuntimeComposition,
   includeRuntimeImportMap,
   runtimeComposition,
-} from "runtime-module-composition/vite";
+} from "@rmc-toolkit/vite";
 ```
 
 ### `runtimeComposition(options)`
@@ -240,7 +240,7 @@ Use `runtimeComposition()` for local development in a Vite host or shell. It ret
 
 ```ts
 import { defineConfig } from "vite";
-import { runtimeComposition } from "runtime-module-composition/vite";
+import { runtimeComposition } from "@rmc-toolkit/vite";
 import { manifest } from "./runtime-composition.manifest";
 
 export default defineConfig({
@@ -265,7 +265,7 @@ Implementation notes:
 Use `includeRuntimeImportMap()` when you only want Vite to generate HTML that includes the import map.
 
 ```ts
-import { includeRuntimeImportMap } from "runtime-module-composition/vite";
+import { includeRuntimeImportMap } from "@rmc-toolkit/vite";
 
 export default defineConfig({
   plugins: [
@@ -290,7 +290,7 @@ Implementation notes:
 Use `externalizeRuntimeComposition()` when you only want Vite to preserve import-map-owned specifiers.
 
 ```ts
-import { externalizeRuntimeComposition } from "runtime-module-composition/vite";
+import { externalizeRuntimeComposition } from "@rmc-toolkit/vite";
 
 export default defineConfig({
   plugins: [
@@ -312,7 +312,7 @@ Implementation notes:
 Use `createRollupExternal()` in production library builds for slice modules.
 
 ```ts
-import { createRollupExternal } from "runtime-module-composition/vite";
+import { createRollupExternal } from "@rmc-toolkit/vite";
 import { manifest } from "./runtime-composition.manifest";
 
 export default defineConfig({
@@ -340,7 +340,7 @@ Implementation notes:
 Import from the React subpath:
 
 ```tsx
-import { DynamicModuleBoundary } from "runtime-module-composition/react";
+import { DynamicModuleBoundary } from "@rmc-toolkit/react";
 ```
 
 ### `DynamicModuleBoundary(props)`
@@ -348,8 +348,8 @@ import { DynamicModuleBoundary } from "runtime-module-composition/react";
 Use `DynamicModuleBoundary()` inside a React host when a route resolves to a React slice module.
 
 ```tsx
-import { resolveRoute } from "runtime-module-composition";
-import { DynamicModuleBoundary } from "runtime-module-composition/react";
+import { resolveRoute } from "@rmc-toolkit/core";
+import { DynamicModuleBoundary } from "@rmc-toolkit/react";
 import { manifest } from "./runtime-composition.manifest";
 
 export function RouteSlot() {

@@ -134,21 +134,18 @@ packages/vite
 packages/react
 ```
 
-Root package supports subpath imports:
+Published as three scoped packages (no root/unscoped meta-package):
 
 ```ts
-import { defineManifest, resolveRoute } from "runtime-module-composition";
-import { createImportMap } from "runtime-module-composition/core";
-import { runtimeComposition } from "runtime-module-composition/vite";
-import { DynamicModuleBoundary } from "runtime-module-composition/react";
+import { defineManifest, resolveRoute } from "@rmc-toolkit/core";
+import { runtimeComposition } from "@rmc-toolkit/vite";
+import { DynamicModuleBoundary } from "@rmc-toolkit/react";
 ```
 
-Scoped workspace package imports also exist internally:
-
 ```ts
-@runtime-module-composition/core
-@runtime-module-composition/vite
-@runtime-module-composition/react
+@rmc-toolkit/core
+@rmc-toolkit/vite
+@rmc-toolkit/react
 ```
 
 ## Current Core API Intent

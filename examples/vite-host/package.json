@@ -1,5 +1,5 @@
 {
-  "name": "@runtime-module-composition/example-vite-host",
+  "name": "@rmc-toolkit/example-vite-host",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
     "dev": "vite"
   },
   "dependencies": {
-    "@runtime-module-composition/core": "0.1.0",
-    "@runtime-module-composition/vite": "0.1.0"
+    "@rmc-toolkit/core": "0.1.0",
+    "@rmc-toolkit/vite": "0.1.0"
   },
   "devDependencies": {
     "vite": "^7.0.0"

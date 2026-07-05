@@ -3,7 +3,7 @@ import {
   resolveRoute,
   unwrapDefault,
   type RuntimeModule,
-} from "@runtime-module-composition/core";
+} from "@rmc-toolkit/core";
 import { manifest } from "../runtime-composition.manifest.js";
 
 const bootstrap = async (): Promise<void> => {

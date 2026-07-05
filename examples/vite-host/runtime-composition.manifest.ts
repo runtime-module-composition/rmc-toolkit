@@ -1,4 +1,4 @@
-import { defineManifest } from "@runtime-module-composition/core";
+import { defineManifest } from "@rmc-toolkit/core";
 
 export const manifest = defineManifest({
   namespace: "@acme",

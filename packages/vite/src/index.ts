@@ -4,7 +4,7 @@ import {
   createImportMapBootstrapScript,
   type RuntimeCompositionManifest,
   type RuntimeEnvironment,
-} from "@runtime-module-composition/core";
+} from "@rmc-toolkit/core";
 import type { Plugin } from "vite";
 
 export type RuntimeCompositionViteOptions = {
