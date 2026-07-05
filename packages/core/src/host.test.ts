@@ -264,4 +264,39 @@ describe("createRuntimeHost", () => {
     expect(staleModule.mount).not.toHaveBeenCalled();
     expect(winningModule.mount).toHaveBeenCalledTimes(1);
   });
+
+  test("destroy() unmounts the current module and resets state", async () => {
+    const searchModule = createMockModule();
+    const importer = vi.fn(async () => ({ default: searchModule }));
+    const target = document.createElement("div");
+
+    const host = createRuntimeHost({ manifest, target, importer });
+    await host.resolveAndMount("/search");
+    await host.destroy();
+
+    expect(searchModule.unmount).toHaveBeenCalledTimes(1);
+
+    await host.resolveAndMount("/search");
+    expect(searchModule.mount).toHaveBeenCalledTimes(2);
+  });
+
+  test("destroy() invalidates an in-flight resolveAndMount call", async () => {
+    const searchModule = createMockModule();
+    const target = document.createElement("div");
+
+    let resolveImport: (value: { default: RuntimeModule }) => void;
+    const importPromise = new Promise<{ default: RuntimeModule }>((resolve) => {
+      resolveImport = resolve;
+    });
+    const importer = vi.fn(async () => importPromise);
+
+    const host = createRuntimeHost({ manifest, target, importer });
+    const pendingCall = host.resolveAndMount("/search");
+
+    await host.destroy();
+    resolveImport!({ default: searchModule });
+    await pendingCall;
+
+    expect(searchModule.mount).not.toHaveBeenCalled();
+  });
 });

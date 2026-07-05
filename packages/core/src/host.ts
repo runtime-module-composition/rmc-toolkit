@@ -16,6 +16,7 @@ export type RuntimeHostOptions = {
 
 export type RuntimeHost = {
   resolveAndMount(path: string): Promise<void>;
+  destroy(): Promise<void>;
 };
 
 export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
@@ -110,7 +111,16 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
     }
   };
 
-  return { resolveAndMount };
+  const destroy = async (): Promise<void> => {
+    latestToken += 1;
+    if (currentModule) {
+      await currentModule.unmount?.();
+    }
+    currentModule = null;
+    currentSpecifier = null;
+  };
+
+  return { resolveAndMount, destroy };
 };
 
 export const notifyInternalNavigation = (path: string): void => {
