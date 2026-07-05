@@ -118,6 +118,11 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
     }
     currentModule = null;
     currentSpecifier = null;
+    // Same accepted, narrower limitation as the resolveAndMount-vs-
+    // resolveAndMount case above: if a resolveAndMount() call is already
+    // inside its own (uninterruptible) mount() when destroy() runs, that
+    // mount can still finish after this promise resolves, leaving something
+    // mounted that this host's own bookkeeping no longer reflects.
   };
 
   return { resolveAndMount, destroy };
