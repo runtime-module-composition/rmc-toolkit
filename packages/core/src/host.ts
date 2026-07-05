@@ -21,6 +21,9 @@ export type RuntimeHost = {
 export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
   const { manifest, target, importer } = options;
   const onLoading = options.onLoading ?? ((): void => {});
+  // Reuse one generic message for both "no route matched" and "import/mount
+  // failed" — the default UI's job is "something's wrong", not a diagnostic
+  // surface; pass a custom onError to differentiate them.
   const onError =
     options.onError ??
     ((error: unknown, path: string): void => {
@@ -31,6 +34,12 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
   let currentSpecifier: string | null = null;
   let currentModule: RuntimeModule | null = null;
 
+  const resetAndReportError = (error: unknown, path: string): void => {
+    currentModule = null;
+    currentSpecifier = null;
+    onError(error, path);
+  };
+
   const resolveAndMount = async (path: string): Promise<void> => {
     const match = resolveRoute(manifest, path);
 
@@ -40,14 +49,10 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
           await currentModule.unmount?.();
         }
       } catch (error) {
-        currentModule = null;
-        currentSpecifier = null;
-        onError(error, path);
+        resetAndReportError(error, path);
         return;
       }
-      currentModule = null;
-      currentSpecifier = null;
-      onError(new Error(`No slice matches ${path}`), path);
+      resetAndReportError(new Error(`No slice matches ${path}`), path);
       return;
     }
 
@@ -73,9 +78,7 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
       currentModule = runtimeModule;
       await runtimeModule.mount(target, { route: match, manifest });
     } catch (error) {
-      currentModule = null;
-      currentSpecifier = null;
-      onError(error, path);
+      resetAndReportError(error, path);
     }
   };
 
