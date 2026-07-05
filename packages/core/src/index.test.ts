@@ -1,9 +1,12 @@
-import { describe, expect, test } from "vitest";
+// @vitest-environment happy-dom
+import { describe, expect, test, vi } from "vitest";
 import {
   createExternalMatcher,
   createImportMap,
   createImportMapBootstrapScript,
+  createRuntimeHost,
   defineManifest,
+  notifyInternalNavigation,
   resolveRoute,
   validateManifest,
 } from "./index.js";
@@ -295,5 +298,21 @@ describe("runtime composition core", () => {
       expectedWithDevDeps["@esm.sh/zustand"],
     );
     expect(producedImports["@esm.sh/"]).toBe(expectedWithDevDeps["@esm.sh/"]);
+  });
+
+  test("re-exports createRuntimeHost and notifyInternalNavigation from the public barrel", async () => {
+    const target = document.createElement("div");
+    const mountSpy = vi.fn(async () => {});
+    const importer = vi.fn(async () => ({ default: { mount: mountSpy } }));
+
+    const host = createRuntimeHost({
+      manifest: { namespace: "@acme", assetsOrigin: "https://assets.example.com" },
+      target,
+      importer,
+    });
+    await host.resolveAndMount("/search");
+
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(typeof notifyInternalNavigation).toBe("function");
   });
 });
