@@ -51,10 +51,14 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
           await currentModule.unmount?.();
         }
       } catch (error) {
-        resetAndReportError(error, path);
+        if (token === latestToken) {
+          resetAndReportError(error, path);
+        }
         return;
       }
-      resetAndReportError(new Error(`No slice matches ${path}`), path);
+      if (token === latestToken) {
+        resetAndReportError(new Error(`No slice matches ${path}`), path);
+      }
       return;
     }
 
@@ -80,14 +84,29 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
         await currentModule.unmount?.();
       }
 
-      currentSpecifier = match.specifier;
-      currentModule = runtimeModule;
-      await runtimeModule.mount(target, { route: match, manifest });
-    } catch (error) {
+      // Re-check after unmount: it's an arbitrary, user-authored async
+      // function that can take any amount of time, so a newer call may have
+      // become latest while this one was awaiting it. Without this check, a
+      // slow unmount could let this call commit stale state on top of a
+      // newer call's already-mounted module.
       if (token !== latestToken) {
         return;
       }
-      resetAndReportError(error, path);
+
+      currentSpecifier = match.specifier;
+      currentModule = runtimeModule;
+      // Accepted, narrower limitation: once mount() is actually called,
+      // there's no clean way to cancel it if a still-newer call starts and
+      // reaches its own mount() before this one finishes. Closing that would
+      // require serializing all resolveAndMount() calls behind a queue/lock,
+      // which is out of scope for the specific bug this token fix closes
+      // (the earlier, easily-hit case of an older call clobbering a newer
+      // call's already-*settled* mount).
+      await runtimeModule.mount(target, { route: match, manifest });
+    } catch (error) {
+      if (token === latestToken) {
+        resetAndReportError(error, path);
+      }
     }
   };
 

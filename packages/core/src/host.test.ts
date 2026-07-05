@@ -10,6 +10,7 @@ const manifest = defineManifest({
   sliceOverrides: {
     search: { route: "/search/*", specifier: "@acme/search/index.mjs", entry: "index.mjs" },
     cart: { route: "/cart/*", specifier: "@acme/cart/index.mjs", entry: "index.mjs" },
+    wishlist: { route: "/wishlist/*", specifier: "@acme/wishlist/index.mjs", entry: "index.mjs" },
   },
 });
 
@@ -217,5 +218,50 @@ describe("createRuntimeHost", () => {
     expect(searchModule.mount).not.toHaveBeenCalled();
     expect(searchModule.unmount).not.toHaveBeenCalled();
     expect(cartModule.unmount).not.toHaveBeenCalled();
+  });
+
+  test("discards a stale call even when a newer call starts while this call is still awaiting its own unmount()", async () => {
+    const target = document.createElement("div");
+    const initialModule = createMockModule();
+    const staleModule = createMockModule();
+    const winningModule = createMockModule();
+
+    let resolveUnmount: () => void;
+    const unmountPromise = new Promise<void>((resolve) => {
+      resolveUnmount = resolve;
+    });
+    initialModule.unmount.mockImplementation(() => unmountPromise);
+
+    const importer = vi.fn(async (specifier: string) => {
+      if (specifier === "@acme/search/index.mjs") {
+        return { default: initialModule };
+      }
+      if (specifier === "@acme/cart/index.mjs") {
+        return { default: staleModule };
+      }
+      return { default: winningModule };
+    });
+
+    const host = createRuntimeHost({ manifest, target, importer });
+    await host.resolveAndMount("/search");
+
+    // Stale call: its own import (cart) resolves immediately, so it passes
+    // the post-import staleness check while it's still the latest call, then
+    // blocks on unmounting `initialModule` (the shared, manually-controlled
+    // promise below).
+    const staleCall = host.resolveAndMount("/cart");
+    await vi.waitFor(() => {
+      expect(initialModule.unmount).toHaveBeenCalled();
+    });
+
+    // A newer call starts and targets a third slice while the stale call is
+    // still awaiting that same unmount().
+    const winningCall = host.resolveAndMount("/wishlist");
+
+    resolveUnmount!();
+    await Promise.all([staleCall, winningCall]);
+
+    expect(staleModule.mount).not.toHaveBeenCalled();
+    expect(winningModule.mount).toHaveBeenCalledTimes(1);
   });
 });
