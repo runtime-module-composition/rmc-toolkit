@@ -6,14 +6,14 @@ Last updated: 2026-07-03
 
 ## Repository
 
-- Local package repo: `/Users/angelovagenas/Documents/GitHub/FERRY-RSVP/repositories/runtime-module-composition`
-- GitHub remote: `https://github.com/runtime-module-composition/runtime-module-composition.git`
+- Local package repo: `/Users/angelovagenas/Documents/GitHub/FERRY-RSVP/repositories/rmc-toolkit`
+- GitHub remote: `https://github.com/runtime-module-composition/rmc-toolkit.git`
 - Docs-site repo was moved to: `/Users/angelovagenas/Documents/GitHub/FERRY-RSVP/repositories/runtime-module-composition.dev`
 - Docs-site remote: `https://github.com/runtime-module-composition/runtime-module-composition.dev.git`
 
 Do not confuse the two local folders:
 
-- `runtime-module-composition` is the package/toolkit repo.
+- `rmc-toolkit` is the package/toolkit repo.
 - `runtime-module-composition.dev` is the Astro Starlight documentation website.
 
 ## Current Git State
