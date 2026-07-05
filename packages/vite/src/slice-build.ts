@@ -37,6 +37,11 @@ export const defineSliceBuild = (options: SliceBuildOptions): UserConfig => {
 
   return {
     preview: { cors: true },
+    // Vite's library-build mode, unlike its app-build mode, doesn't
+    // auto-replace process.env.NODE_ENV, so React/Vue's internal dev/prod
+    // checks left a raw `process` reference in bundles loaded directly via
+    // native import() in the browser, throwing `ReferenceError: process is
+    // not defined` at runtime (no bundler runs afterward to catch it).
     define: {
       "process.env.NODE_ENV": JSON.stringify("production"),
     },
