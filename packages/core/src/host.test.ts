@@ -87,4 +87,102 @@ describe("createRuntimeHost", () => {
     expect(searchModule.mount).toHaveBeenCalledTimes(1);
     expect(searchModule.unmount).not.toHaveBeenCalled();
   });
+
+  test("calls onError with a descriptive message when no route matches", async () => {
+    const onError = vi.fn();
+    const target = document.createElement("div");
+    const importer = vi.fn();
+
+    const host = createRuntimeHost({ manifest, target, importer, onError });
+    await host.resolveAndMount("/");
+
+    expect(importer).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    const [error, path] = onError.mock.calls[0] as [unknown, string];
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toContain("/");
+    expect(path).toBe("/");
+  });
+
+  test("default onError logs to console.error and writes a message into target", async () => {
+    const target = document.createElement("div");
+    const importer = vi.fn();
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const host = createRuntimeHost({ manifest, target, importer });
+    await host.resolveAndMount("/");
+
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    expect(target.textContent).toBe("Error: failed to load slice for /");
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  test("calls onError when the importer rejects, and resets state so a later navigation isn't blocked", async () => {
+    const onError = vi.fn();
+    const target = document.createElement("div");
+    const importer = vi.fn(async () => {
+      throw new Error("network failure");
+    });
+
+    const host = createRuntimeHost({ manifest, target, importer, onError });
+    await host.resolveAndMount("/search");
+
+    expect(onError).toHaveBeenCalledWith(new Error("network failure"), "/search");
+
+    const searchModule = createMockModule();
+    importer.mockImplementation(async () => ({ default: searchModule }));
+    await host.resolveAndMount("/search");
+
+    expect(searchModule.mount).toHaveBeenCalledTimes(1);
+  });
+
+  test("calls onError when mount() throws", async () => {
+    const onError = vi.fn();
+    const target = document.createElement("div");
+    const failingModule: RuntimeModule = {
+      mount: vi.fn(async () => {
+        throw new Error("mount blew up");
+      }),
+    };
+    const importer = vi.fn(async () => ({ default: failingModule }));
+
+    const host = createRuntimeHost({ manifest, target, importer, onError });
+    await host.resolveAndMount("/search");
+
+    expect(onError).toHaveBeenCalledWith(new Error("mount blew up"), "/search");
+  });
+
+  test("calls onLoading with the path before importing a new module, but not for a same-specifier no-op", async () => {
+    const onLoading = vi.fn();
+    const searchModule = createMockModule();
+    const importer = vi.fn(async () => ({ default: searchModule }));
+    const target = document.createElement("div");
+
+    const host = createRuntimeHost({ manifest, target, importer, onLoading });
+    await host.resolveAndMount("/search");
+    await host.resolveAndMount("/search/results");
+
+    expect(onLoading).toHaveBeenCalledTimes(1);
+    expect(onLoading).toHaveBeenCalledWith("/search");
+  });
+
+  test("calls onError (not the 'no slice matches' message) when unmounting during a no-match navigation itself throws", async () => {
+    const onError = vi.fn();
+    const target = document.createElement("div");
+    const searchModule: RuntimeModule = {
+      mount: vi.fn(async () => {}),
+      unmount: vi.fn(async () => {
+        throw new Error("unmount blew up");
+      }),
+    };
+    const importer = vi.fn(async () => ({ default: searchModule }));
+
+    const host = createRuntimeHost({ manifest, target, importer, onError });
+    await host.resolveAndMount("/search");
+    await host.resolveAndMount("/");
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(new Error("unmount blew up"), "/");
+  });
 });

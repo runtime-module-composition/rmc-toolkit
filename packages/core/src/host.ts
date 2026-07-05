@@ -9,6 +9,8 @@ import type {
 export type RuntimeHostOptions = {
   manifest: RuntimeCompositionManifest;
   target: Element;
+  onLoading?: (path: string) => void;
+  onError?: (error: unknown, path: string) => void;
   importer?: DynamicImporter;
 };
 
@@ -18,6 +20,13 @@ export type RuntimeHost = {
 
 export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
   const { manifest, target, importer } = options;
+  const onLoading = options.onLoading ?? ((): void => {});
+  const onError =
+    options.onError ??
+    ((error: unknown, path: string): void => {
+      console.error(`Failed to load slice for ${path}:`, error);
+      target.textContent = `Error: failed to load slice for ${path}`;
+    });
 
   let currentSpecifier: string | null = null;
   let currentModule: RuntimeModule | null = null;
@@ -26,6 +35,19 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
     const match = resolveRoute(manifest, path);
 
     if (!match) {
+      try {
+        if (currentModule) {
+          await currentModule.unmount?.();
+        }
+      } catch (error) {
+        currentModule = null;
+        currentSpecifier = null;
+        onError(error, path);
+        return;
+      }
+      currentModule = null;
+      currentSpecifier = null;
+      onError(new Error(`No slice matches ${path}`), path);
       return;
     }
 
@@ -36,17 +58,25 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
       return;
     }
 
-    const runtimeModule = unwrapDefault(
-      await importModule(match.specifier, importer),
-    ) as RuntimeModule;
+    onLoading(path);
 
-    if (currentModule) {
-      await currentModule.unmount?.();
+    try {
+      const runtimeModule = unwrapDefault(
+        await importModule(match.specifier, importer),
+      ) as RuntimeModule;
+
+      if (currentModule) {
+        await currentModule.unmount?.();
+      }
+
+      currentSpecifier = match.specifier;
+      currentModule = runtimeModule;
+      await runtimeModule.mount(target, { route: match, manifest });
+    } catch (error) {
+      currentModule = null;
+      currentSpecifier = null;
+      onError(error, path);
     }
-
-    currentSpecifier = match.specifier;
-    currentModule = runtimeModule;
-    await runtimeModule.mount(target, { route: match, manifest });
   };
 
   return { resolveAndMount };
