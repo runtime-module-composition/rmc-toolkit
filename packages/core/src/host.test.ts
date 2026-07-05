@@ -122,7 +122,7 @@ describe("createRuntimeHost", () => {
   test("calls onError when the importer rejects, and resets state so a later navigation isn't blocked", async () => {
     const onError = vi.fn();
     const target = document.createElement("div");
-    const importer = vi.fn(async () => {
+    const importer = vi.fn<(specifier: string) => Promise<unknown>>(async () => {
       throw new Error("network failure");
     });
 
