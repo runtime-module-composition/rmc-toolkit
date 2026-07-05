@@ -185,4 +185,37 @@ describe("createRuntimeHost", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError).toHaveBeenCalledWith(new Error("unmount blew up"), "/");
   });
+
+  test("discards a stale import: only the last-requested module ends up mounted", async () => {
+    const searchModule = createMockModule();
+    const cartModule = createMockModule();
+    const target = document.createElement("div");
+
+    let resolveSearchImport: (value: { default: RuntimeModule }) => void;
+    const searchImportPromise = new Promise<{ default: RuntimeModule }>((resolve) => {
+      resolveSearchImport = resolve;
+    });
+
+    const importer = vi.fn(async (specifier: string) => {
+      if (specifier === "@acme/search/index.mjs") {
+        return searchImportPromise;
+      }
+      return { default: cartModule };
+    });
+
+    const host = createRuntimeHost({ manifest, target, importer });
+
+    const firstCall = host.resolveAndMount("/search");
+    const secondCall = host.resolveAndMount("/cart");
+
+    await secondCall;
+    expect(cartModule.mount).toHaveBeenCalledTimes(1);
+
+    resolveSearchImport!({ default: searchModule });
+    await firstCall;
+
+    expect(searchModule.mount).not.toHaveBeenCalled();
+    expect(searchModule.unmount).not.toHaveBeenCalled();
+    expect(cartModule.unmount).not.toHaveBeenCalled();
+  });
 });

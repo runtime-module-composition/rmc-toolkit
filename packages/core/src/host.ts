@@ -31,6 +31,7 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
       target.textContent = `Error: failed to load slice for ${path}`;
     });
 
+  let latestToken = 0;
   let currentSpecifier: string | null = null;
   let currentModule: RuntimeModule | null = null;
 
@@ -41,6 +42,7 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
   };
 
   const resolveAndMount = async (path: string): Promise<void> => {
+    const token = ++latestToken;
     const match = resolveRoute(manifest, path);
 
     if (!match) {
@@ -70,6 +72,10 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
         await importModule(match.specifier, importer),
       ) as RuntimeModule;
 
+      if (token !== latestToken) {
+        return;
+      }
+
       if (currentModule) {
         await currentModule.unmount?.();
       }
@@ -78,6 +84,9 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
       currentModule = runtimeModule;
       await runtimeModule.mount(target, { route: match, manifest });
     } catch (error) {
+      if (token !== latestToken) {
+        return;
+      }
       resetAndReportError(error, path);
     }
   };
