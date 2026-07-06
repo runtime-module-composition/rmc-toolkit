@@ -10,6 +10,7 @@ export type RuntimeHostOptions = {
   manifest: RuntimeCompositionManifest;
   target: Element;
   onLoading?: (path: string) => void;
+  onReady?: (path: string) => void;
   onError?: (error: unknown, path: string) => void;
   importer?: DynamicImporter;
 };
@@ -22,6 +23,7 @@ export type RuntimeHost = {
 export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
   const { manifest, target, importer } = options;
   const onLoading = options.onLoading ?? ((): void => {});
+  const onReady = options.onReady ?? ((): void => {});
   // Reuse one generic message for both "no route matched" and "import/mount
   // failed" — the default UI's job is "something's wrong", not a diagnostic
   // surface; pass a custom onError to differentiate them.
@@ -104,6 +106,10 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
       // (the earlier, easily-hit case of an older call clobbering a newer
       // call's already-*settled* mount).
       await runtimeModule.mount(target, { route: match, manifest });
+
+      if (token === latestToken) {
+        onReady(path);
+      }
     } catch (error) {
       if (token === latestToken) {
         resetAndReportError(error, path);

@@ -168,6 +168,50 @@ describe("createRuntimeHost", () => {
     expect(onLoading).toHaveBeenCalledWith("/search");
   });
 
+  test("calls onReady with the path after a successful mount", async () => {
+    const onReady = vi.fn();
+    const searchModule = createMockModule();
+    const importer = vi.fn(async () => ({ default: searchModule }));
+    const target = document.createElement("div");
+
+    const host = createRuntimeHost({ manifest, target, importer, onReady });
+    await host.resolveAndMount("/search");
+
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(onReady).toHaveBeenCalledWith("/search");
+  });
+
+  test("does not call onReady for a stale call that loses the race", async () => {
+    const onReady = vi.fn();
+    const searchModule = createMockModule();
+    const cartModule = createMockModule();
+    const target = document.createElement("div");
+
+    let resolveSearchImport: (value: { default: RuntimeModule }) => void;
+    const searchImportPromise = new Promise<{ default: RuntimeModule }>((resolve) => {
+      resolveSearchImport = resolve;
+    });
+
+    const importer = vi.fn(async (specifier: string) => {
+      if (specifier === "@acme/search/index.mjs") {
+        return searchImportPromise;
+      }
+      return { default: cartModule };
+    });
+
+    const host = createRuntimeHost({ manifest, target, importer, onReady });
+
+    const firstCall = host.resolveAndMount("/search");
+    const secondCall = host.resolveAndMount("/cart");
+
+    await secondCall;
+    resolveSearchImport!({ default: searchModule });
+    await firstCall;
+
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(onReady).toHaveBeenCalledWith("/cart");
+  });
+
   test("calls onError (not the 'no slice matches' message) when unmounting during a no-match navigation itself throws", async () => {
     const onError = vi.fn();
     const target = document.createElement("div");
