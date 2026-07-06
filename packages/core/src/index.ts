@@ -1,4 +1,5 @@
 export * from "./externals.js";
+export * from "./host-observable.js";
 export * from "./host.js";
 export * from "./import-map.js";
 export * from "./loader.js";

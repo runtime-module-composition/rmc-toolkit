@@ -5,6 +5,7 @@ import {
   createImportMap,
   createImportMapBootstrapScript,
   createRuntimeHost,
+  createRuntimeHostObservable,
   defineManifest,
   notifyInternalNavigation,
   resolveRoute,
@@ -314,5 +315,15 @@ describe("runtime composition core", () => {
 
     expect(mountSpy).toHaveBeenCalledTimes(1);
     expect(typeof notifyInternalNavigation).toBe("function");
+  });
+
+  test("re-exports createRuntimeHostObservable from the public barrel", () => {
+    const target = document.createElement("div");
+    const observable = createRuntimeHostObservable({
+      manifest: { namespace: "@acme", assetsOrigin: "https://assets.example.com" },
+      target,
+    });
+
+    expect(observable.getSnapshot()).toEqual({ type: "idle" });
   });
 });
