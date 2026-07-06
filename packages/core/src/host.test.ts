@@ -212,6 +212,42 @@ describe("createRuntimeHost", () => {
     expect(onReady).toHaveBeenCalledWith("/cart");
   });
 
+  test("does not call onReady for a call whose mount() finishes after a newer call has already taken over", async () => {
+    const onReady = vi.fn();
+    const target = document.createElement("div");
+
+    let resolveSearchMount: () => void;
+    const searchMountPromise = new Promise<void>((resolve) => {
+      resolveSearchMount = resolve;
+    });
+    const searchModule: RuntimeModule = {
+      mount: vi.fn(() => searchMountPromise),
+      unmount: vi.fn(async () => {}),
+    };
+    const cartModule = createMockModule();
+
+    const importer = vi.fn(async (specifier: string) => ({
+      default: specifier === "@acme/search/index.mjs" ? searchModule : cartModule,
+    }));
+
+    const host = createRuntimeHost({ manifest, target, importer, onReady });
+
+    const firstCall = host.resolveAndMount("/search");
+    // Let the first call's import resolve and its mount() begin (and hang).
+    await vi.waitFor(() => {
+      expect(searchModule.mount).toHaveBeenCalled();
+    });
+
+    const secondCall = host.resolveAndMount("/cart");
+    await secondCall;
+
+    resolveSearchMount!();
+    await firstCall;
+
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(onReady).toHaveBeenCalledWith("/cart");
+  });
+
   test("calls onError (not the 'no slice matches' message) when unmounting during a no-match navigation itself throws", async () => {
     const onError = vi.fn();
     const target = document.createElement("div");
