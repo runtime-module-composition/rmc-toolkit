@@ -66,3 +66,9 @@ export const DynamicModuleBoundary = ({
     </React.Suspense>
   );
 };
+
+export { createReactAdapter } from "./create-react-adapter.js";
+export type {
+  UseRuntimeHostOptions,
+  UseRuntimeHostResult,
+} from "./create-react-adapter.js";
