@@ -178,4 +178,48 @@ describe("createRuntimeHostObservable", () => {
     await observable.destroy();
     expect(searchModule.unmount).toHaveBeenCalledTimes(1);
   });
+
+  test("does not broadcast status from a stale call that loses the race", async () => {
+    const searchModule = createMockModule();
+    const cartModule = createMockModule();
+    const target = document.createElement("div");
+    const statuses: RuntimeHostStatus[] = [];
+
+    let resolveSearchImport: (value: { default: RuntimeModule }) => void;
+    const searchImportPromise = new Promise<{ default: RuntimeModule }>((resolve) => {
+      resolveSearchImport = resolve;
+    });
+
+    const importer = vi.fn(async (specifier: string) => {
+      if (specifier === "@acme/search/index.mjs") {
+        return searchImportPromise;
+      }
+      return { default: cartModule };
+    });
+
+    const observable = createRuntimeHostObservable({ manifest, target, importer });
+    observable.subscribe((status) => statuses.push(status));
+
+    observable.next("/search");
+    observable.next("/cart");
+
+    await vi.waitFor(() => {
+      expect(observable.getSnapshot()).toEqual({ type: "ready", path: "/cart" });
+    });
+
+    resolveSearchImport!({ default: searchModule });
+    // Give the resumed stale call a chance to (incorrectly) broadcast, if it were going to.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(observable.getSnapshot()).toEqual({ type: "ready", path: "/cart" });
+    // "/search" legitimately gets its own "loading" status (it was still the
+    // latest call at that synchronous instant, before "/cart" pre-empted it),
+    // but it must never reach "ready" or "error" once it has lost the race —
+    // only "/cart"'s own loading -> ready pair should follow.
+    expect(statuses).toEqual([
+      { type: "loading", path: "/search" },
+      { type: "loading", path: "/cart" },
+      { type: "ready", path: "/cart" },
+    ]);
+  });
 });

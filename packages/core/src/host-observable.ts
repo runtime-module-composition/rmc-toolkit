@@ -41,6 +41,9 @@ export const createRuntimeHostObservable = (
 
   return {
     next(path: string): void {
+      // Fire-and-forget is safe here: resolveAndMount() never throws or
+      // rejects — it catches everything internally and reports failures via
+      // onError, which setStatus() above turns into an "error" status.
       void host.resolveAndMount(path);
     },
     subscribe(observer: (status: RuntimeHostStatus) => void): () => void {
