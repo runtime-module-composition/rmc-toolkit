@@ -32,6 +32,12 @@ export const createVueAdapter = (
         return;
       }
       observable = createRuntimeHostObservable({ ...options, target: target.value });
+      // Assigning .value here from an externally-triggered callback (not
+      // during a component render or a computed/effect run) is safe by
+      // design: a ref's setter just updates its value and notifies its
+      // subscribers, and doesn't require an active reactive tracking
+      // context. No nextTick() or other synchronization is needed, the same
+      // way it wouldn't be for a WebSocket message handler updating a ref.
       unsubscribe = observable.subscribe((next) => {
         status.value = next;
       });
@@ -42,12 +48,15 @@ export const createVueAdapter = (
       observable.next(path());
     });
 
-    // Deliberately a separate watcher rather than folded into onMounted: Vue
-    // runs onMounted before any watcher registered in the same setup() has a
-    // chance to fire for a later change, so by the time this watcher's
-    // callback runs, observable is guaranteed to be non-null (mount already
-    // happened). Do not merge this into onMounted or reorder it above the
-    // onMounted call.
+    // Deliberately a separate watcher rather than folded into onMounted: the
+    // watch callback registered here has no `{ immediate: true }`, so it
+    // never fires synchronously during setup — it only fires on a later
+    // reactive change, which cannot happen before mount completes and
+    // onMounted's callback has already run and assigned `observable`. Do not
+    // add `{ immediate: true }` to this watch call — that would let it fire
+    // during setup, before observable is assigned, and (once mount does
+    // complete) would also race a duplicate next(path()) against the one in
+    // onMounted above.
     Vue.watch(path, (newPath) => {
       observable?.next(newPath);
     });
