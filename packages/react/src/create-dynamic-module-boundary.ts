@@ -34,6 +34,14 @@ export const createDynamicModuleBoundary = (
 } => {
   type ErrorBoundaryState = { error: unknown };
 
+  // ErrorBoundary is redefined on every createDynamicModuleBoundary call
+  // rather than hoisted out as a module-level class: it extends the
+  // injected `React.Component`, and React class instances/statics
+  // (getDerivedStateFromError, etc.) are only valid against the exact
+  // React copy they were built from. Threading a second DI parameter
+  // through just for this base class would be over-engineering -- these
+  // factories are called once per host app at module scope, so redefining
+  // the class here has no meaningful runtime cost.
   class ErrorBoundary extends React.Component<
     { children: ReactNamespace.ReactNode; fallback: ReactNamespace.ReactNode },
     ErrorBoundaryState
@@ -69,6 +77,18 @@ export const createDynamicModuleBoundary = (
         ? {}
         : ({ context } satisfies { context: RuntimeModuleContext });
 
+    // Equivalent to:
+    // <React.Suspense fallback={fallback}>
+    //   <ErrorBoundary fallback={errorFallback}>
+    //     <LazyModule {...moduleProps} />
+    //   </ErrorBoundary>
+    // </React.Suspense>
+    //
+    // `children` is passed inside ErrorBoundary's props object (rather than
+    // as a third createElement argument) to satisfy TypeScript's overload
+    // resolution, since ErrorBoundary's props type declares `children` as
+    // required -- it is the same substitution JSX itself performs, not an
+    // accidental extra prop.
     return React.createElement(
       React.Suspense,
       { fallback },

@@ -38,10 +38,11 @@ describe("DynamicModuleBoundary", () => {
     // namespace object. If the implementation secretly imported "react"
     // itself instead of using the injected parameter, both boundaries would
     // still work identically and this test would give no signal either way
-    // -- so the real proof is the static check (see self-review) that
-    // create-dynamic-module-boundary.ts has no runtime `import` of "react".
-    // This test instead proves the DI parameter is actually wired through
-    // to produce a working component for whichever React instance is passed,
+    // -- that create-dynamic-module-boundary.ts has no runtime `import` of
+    // "react" is a static fact, verifiable by inspection of its import
+    // statements, not something a render test can detect. What this test
+    // does prove is that the DI parameter is actually wired through to
+    // produce a working component for whichever React instance is passed,
     // by creating two boundaries from two separate calls and rendering both.
     const { DynamicModuleBoundary: BoundaryA } = createDynamicModuleBoundary(React);
     const { DynamicModuleBoundary: BoundaryB } = createDynamicModuleBoundary(React);
