@@ -212,10 +212,10 @@ describe("includeHostedImportMap", () => {
   });
 
   test("serves the generated script from the default middleware path", () => {
-    const plugin = includeHostedImportMap({ manifest });
+    const [plugin] = includeHostedImportMap({ manifest });
     const { server, middlewares } = createMockServer();
 
-    if (typeof plugin.configureServer !== "function") {
+    if (!plugin || typeof plugin.configureServer !== "function") {
       throw new TypeError("Expected configureServer to be a function.");
     }
     (plugin.configureServer as unknown as (server: unknown) => void)(server);
@@ -242,10 +242,10 @@ describe("includeHostedImportMap", () => {
   });
 
   test("uses a custom middleware path when provided", () => {
-    const plugin = includeHostedImportMap({ manifest, path: "/custom.js" });
+    const [plugin] = includeHostedImportMap({ manifest, path: "/custom.js" });
     const { server, middlewares } = createMockServer();
 
-    if (typeof plugin.configureServer !== "function") {
+    if (!plugin || typeof plugin.configureServer !== "function") {
       throw new TypeError("Expected configureServer to be a function.");
     }
     (plugin.configureServer as unknown as (server: unknown) => void)(server);
@@ -254,13 +254,13 @@ describe("includeHostedImportMap", () => {
   });
 
   test("applies the localSlice override when serving the script", () => {
-    const plugin = includeHostedImportMap({
+    const [plugin] = includeHostedImportMap({
       manifest,
       localSlice: { name: "search", port: 5173 },
     });
     const { server, middlewares } = createMockServer();
 
-    if (typeof plugin.configureServer !== "function") {
+    if (!plugin || typeof plugin.configureServer !== "function") {
       throw new TypeError("Expected configureServer to be a function.");
     }
     (plugin.configureServer as unknown as (server: unknown) => void)(server);
@@ -278,10 +278,10 @@ describe("includeHostedImportMap", () => {
   });
 
   test("calls next() instead of end() for a method other than GET/HEAD", () => {
-    const plugin = includeHostedImportMap({ manifest });
+    const [plugin] = includeHostedImportMap({ manifest });
     const { server, middlewares } = createMockServer();
 
-    if (typeof plugin.configureServer !== "function") {
+    if (!plugin || typeof plugin.configureServer !== "function") {
       throw new TypeError("Expected configureServer to be a function.");
     }
     (plugin.configureServer as unknown as (server: unknown) => void)(server);
@@ -304,10 +304,10 @@ describe("includeHostedImportMap", () => {
   });
 
   test("calls next() instead of end() when the matched path is a prefix-extended variant", () => {
-    const plugin = includeHostedImportMap({ manifest });
+    const [plugin] = includeHostedImportMap({ manifest });
     const { server, middlewares } = createMockServer();
 
-    if (typeof plugin.configureServer !== "function") {
+    if (!plugin || typeof plugin.configureServer !== "function") {
       throw new TypeError("Expected configureServer to be a function.");
     }
     (plugin.configureServer as unknown as (server: unknown) => void)(server);
@@ -331,5 +331,34 @@ describe("includeHostedImportMap", () => {
 
     expect(nextCalled).toBe(true);
     expect(endCalled).toBe(false);
+  });
+
+  test("includes the ordering-safety HTML transform plugin, restricted to dev", () => {
+    const [, htmlTransformPlugin] = includeHostedImportMap({ manifest });
+
+    expect(htmlTransformPlugin?.apply).toBe("serve");
+    expect(typeof htmlTransformPlugin?.transformIndexHtml).toBe("function");
+  });
+
+  test("the HTML transform plugin repositions the importmap script tag to the front of <head> and appends ?dev", () => {
+    const [, htmlTransformPlugin] = includeHostedImportMap({ manifest });
+
+    if (typeof htmlTransformPlugin?.transformIndexHtml !== "function") {
+      throw new TypeError("Expected transformIndexHtml to be a function.");
+    }
+    const transformIndexHtml = htmlTransformPlugin.transformIndexHtml as (
+      html: string,
+    ) => string;
+
+    const html =
+      "<html><head><title>t</title>" +
+      '<script data-src-type="importmap" src="/js/importmap.js"></script>' +
+      "</head><body></body></html>";
+
+    const result = transformIndexHtml(html);
+
+    expect(result.indexOf('src="/js/importmap.js?dev"')).toBeLessThan(
+      result.indexOf("<title>"),
+    );
   });
 });

@@ -21,7 +21,8 @@
     "vite": ">=5"
   },
   "dependencies": {
-    "@rmc-toolkit/core": "0.1.0"
+    "@rmc-toolkit/core": "0.1.0",
+    "vite-plugin-js-importmap-script": "^1.0.0"
   },
   "scripts": {
     "build": "tsc -b"
