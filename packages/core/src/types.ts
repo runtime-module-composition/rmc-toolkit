@@ -36,6 +36,11 @@ export type EnvironmentConfig = {
   sliceOrigins?: Record<string, string>;
 };
 
+export type PackageSpecifier = {
+  basePackage: string;
+  subpath: string | null;
+};
+
 export type ExternalDepEntry =
   | string
   | {

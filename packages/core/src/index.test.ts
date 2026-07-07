@@ -9,6 +9,7 @@ import {
   defineManifest,
   notifyInternalNavigation,
   resolveRoute,
+  splitPackageSpecifier,
   validateManifest,
 } from "./index.js";
 
@@ -19,6 +20,34 @@ const manifest = defineManifest({
 });
 
 describe("runtime composition core", () => {
+  test("splitPackageSpecifier splits a bare package name with no subpath", () => {
+    expect(splitPackageSpecifier("react")).toEqual({
+      basePackage: "react",
+      subpath: null,
+    });
+  });
+
+  test("splitPackageSpecifier splits a package name with a subpath", () => {
+    expect(splitPackageSpecifier("react-dom/client")).toEqual({
+      basePackage: "react-dom",
+      subpath: "client",
+    });
+  });
+
+  test("splitPackageSpecifier splits a scoped package name with no subpath", () => {
+    expect(splitPackageSpecifier("@radix-ui/themes")).toEqual({
+      basePackage: "@radix-ui/themes",
+      subpath: null,
+    });
+  });
+
+  test("splitPackageSpecifier splits a scoped package name with a multi-segment subpath", () => {
+    expect(splitPackageSpecifier("@radix-ui/themes/some/path")).toEqual({
+      basePackage: "@radix-ui/themes",
+      subpath: "some/path",
+    });
+  });
+
   test("creates an import map from namespace and external dependency origins", () => {
     expect(createImportMap(manifest)).toEqual({
       imports: {
