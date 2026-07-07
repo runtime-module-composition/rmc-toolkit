@@ -1,7 +1,9 @@
 import type {
+  ExternalDepEntry,
   RuntimeCompositionDiagnostic,
   RuntimeCompositionManifest,
 } from "./types.js";
+import { splitPackageSpecifier } from "./manifest.js";
 
 export const validateManifest = (
   manifest: RuntimeCompositionManifest,
@@ -81,6 +83,47 @@ export const validateManifest = (
         code: "route-override-specifier-namespace",
         message: `Route override "${route}" specifier should start with ${manifest.namespace}/.`,
       });
+    }
+  }
+
+  const externalDeps = manifest.externalDeps ?? [];
+  const entriesByBasePackage = new Map<string, ExternalDepEntry[]>();
+
+  for (const entry of externalDeps) {
+    const { basePackage } = splitPackageSpecifier(entry.name);
+    const group = entriesByBasePackage.get(basePackage) ?? [];
+    group.push(entry);
+    entriesByBasePackage.set(basePackage, group);
+  }
+
+  for (const [basePackage, group] of entriesByBasePackage) {
+    const distinctVersions = new Set(group.map((entry) => entry.version));
+
+    if (distinctVersions.size > 1) {
+      diagnostics.push({
+        level: "warning",
+        code: "external-deps-version-conflict",
+        message: `externalDeps entries ${group
+          .map((entry) => `"${entry.name}"@${entry.version}`)
+          .join(", ")} all resolve to package "${basePackage}" but declare different versions.`,
+      });
+    }
+  }
+
+  for (const entry of externalDeps) {
+    const peerNames =
+      entry.peerDeps === false
+        ? []
+        : (entry.peerDeps ?? manifest.defaultPeerDeps ?? []);
+
+    for (const peerName of peerNames) {
+      if (!entriesByBasePackage.has(peerName)) {
+        diagnostics.push({
+          level: "warning",
+          code: "external-deps-unresolvable-peer",
+          message: `externalDeps entry "${entry.name}" lists peer dependency "${peerName}", but no externalDeps entry declares a version for "${peerName}".`,
+        });
+      }
     }
   }
 

@@ -371,6 +371,70 @@ describe("runtime composition core", () => {
     ).toHaveLength(0);
   });
 
+  test("validateManifest warns when externalDeps entries share a base package but declare different versions", () => {
+    const diagnostics = validateManifest({
+      ...manifest,
+      externalDeps: [
+        { name: "react-dom", version: "19.2.4" },
+        { name: "react-dom/client", version: "19.2.5" },
+      ],
+    });
+
+    expect(
+      diagnostics.some(
+        (d) => d.level === "warning" && d.code === "external-deps-version-conflict",
+      ),
+    ).toBe(true);
+  });
+
+  test("validateManifest does not warn when externalDeps entries sharing a base package agree on version", () => {
+    const diagnostics = validateManifest({
+      ...manifest,
+      externalDeps: [
+        { name: "react-dom", version: "19.2.4" },
+        { name: "react-dom/client", version: "19.2.4" },
+      ],
+    });
+
+    expect(
+      diagnostics.some((d) => d.code === "external-deps-version-conflict"),
+    ).toBe(false);
+  });
+
+  test("validateManifest warns when a peerDeps name has no matching externalDeps entry", () => {
+    const diagnostics = validateManifest({
+      ...manifest,
+      externalDeps: [
+        {
+          name: "@radix-ui/themes",
+          version: "3.0.0",
+          peerDeps: ["react", "svelte"],
+        },
+      ],
+    });
+
+    expect(
+      diagnostics.some(
+        (d) => d.level === "warning" && d.code === "external-deps-unresolvable-peer",
+      ),
+    ).toBe(true);
+  });
+
+  test("validateManifest does not warn when every peerDeps name resolves, including via defaultPeerDeps", () => {
+    const diagnostics = validateManifest({
+      ...manifest,
+      externalDeps: [
+        { name: "react", version: "19.2.4", peerDeps: false },
+        { name: "@radix-ui/themes", version: "3.0.0" },
+      ],
+      defaultPeerDeps: ["react"],
+    });
+
+    expect(
+      diagnostics.some((d) => d.code === "external-deps-unresolvable-peer"),
+    ).toBe(false);
+  });
+
   test("createImportMapBootstrapScript generates valid, parseable JavaScript", () => {
     const script = createImportMapBootstrapScript(manifest);
     expect(() => new Function(script)).not.toThrow();
