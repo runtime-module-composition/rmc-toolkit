@@ -56,6 +56,16 @@ export const externalizeRuntimeComposition = ({
         return null;
       }
 
+      // `resolved` can be undefined here only if devImportMap is null (build
+      // mode — see configResolved above) or if resolveImportMapSpecifier
+      // can't resolve `source` against it. The latter isn't expected to be
+      // reachable for a well-formed manifest: every specifier isExternal()
+      // matches (namespace prefix, external-deps prefix, exactImports keys,
+      // sliceOverrides specifiers) has a corresponding entry unconditionally
+      // added by createImportMap, so the same prefixes/keys this matcher
+      // checks are exactly what the import map also contains. The `?? source`
+      // fallback exists as a safety net for that theoretical case, not
+      // because it's expected to fire.
       const resolved =
         devImportMap && resolveImportMapSpecifier(devImportMap, source);
 

@@ -252,5 +252,12 @@ export const resolveImportMapSpecifier = (
     return undefined;
   }
 
+  // bestPrefix is always a real key of importMap.imports (it's derived from
+  // Object.keys(importMap.imports) above), so this lookup can't actually be
+  // undefined — but note this is a hand-proven invariant, not something the
+  // type checker enforces here: TypeScript's `+` operator doesn't propagate
+  // noUncheckedIndexedAccess's `| undefined` the way a direct type
+  // annotation would. If bestPrefix's derivation ever changes, re-verify
+  // this invariant still holds.
   return importMap.imports[bestPrefix] + specifier.slice(bestPrefix.length);
 };
