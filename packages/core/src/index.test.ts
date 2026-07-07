@@ -387,6 +387,21 @@ describe("runtime composition core", () => {
     ).toBe(true);
   });
 
+  test("validateManifest emits exactly one warning for a group of 3+ conflicting entries, not one per pair", () => {
+    const diagnostics = validateManifest({
+      ...manifest,
+      externalDeps: [
+        { name: "react-dom", version: "19.2.4" },
+        { name: "react-dom/client", version: "19.2.5" },
+        { name: "react-dom/server", version: "19.2.6" },
+      ],
+    });
+
+    expect(
+      diagnostics.filter((d) => d.code === "external-deps-version-conflict"),
+    ).toHaveLength(1);
+  });
+
   test("validateManifest does not warn when externalDeps entries sharing a base package agree on version", () => {
     const diagnostics = validateManifest({
       ...manifest,
