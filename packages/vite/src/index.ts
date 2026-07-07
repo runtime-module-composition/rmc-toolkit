@@ -2,6 +2,8 @@ import {
   createExternalMatcher,
   createImportMap,
   createImportMapBootstrapScript,
+  resolveImportMapSpecifier,
+  type ImportMap,
   type RuntimeCompositionManifest,
   type RuntimeEnvironment,
 } from "@rmc-toolkit/core";
@@ -20,8 +22,10 @@ export const createRollupExternal = (
 
 export const externalizeRuntimeComposition = ({
   manifest,
+  environment,
 }: RuntimeCompositionViteOptions): Plugin => {
   const isExternal = createExternalMatcher(manifest);
+  let devImportMap: ImportMap | null = null;
 
   return {
     name: "runtime-module-composition-externalize",
@@ -33,13 +37,30 @@ export const externalizeRuntimeComposition = ({
         },
       };
     },
+    configResolved(config) {
+      // Vite's production build (Rollup) already handles a bare specifier
+      // marked `external: true` correctly — it preserves it untouched in
+      // the output bundle for the browser's import map to resolve. Vite's
+      // dev server does not: its import-analysis step rewrites any bare
+      // specifier merely marked external into an internal /@id/<specifier>
+      // placeholder request, and nothing serves that path. Only in dev do
+      // we need to resolve to the real URL ourselves instead.
+      if (config.command === "serve") {
+        devImportMap = createImportMap(manifest, {
+          environment: environment ?? "development",
+        });
+      }
+    },
     resolveId(source) {
       if (!isExternal(source)) {
         return null;
       }
 
+      const resolved =
+        devImportMap && resolveImportMapSpecifier(devImportMap, source);
+
       return {
-        id: source,
+        id: resolved ?? source,
         external: true,
       };
     },

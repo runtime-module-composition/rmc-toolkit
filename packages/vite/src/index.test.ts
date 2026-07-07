@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   buildLocalImportMapScript,
   defineSliceBuild,
+  externalizeRuntimeComposition,
   includeHostedImportMap,
   includeRuntimeImportMap,
   runtimeComposition,
@@ -63,6 +64,110 @@ describe("vite adapter", () => {
     });
 
     expect(config).toEqual({ server: { port: 5301 } });
+  });
+});
+
+describe("externalizeRuntimeComposition dev-server resolution", () => {
+  test("build mode returns the bare specifier unchanged (existing, verified-working behavior)", () => {
+    const plugin = externalizeRuntimeComposition({
+      manifest,
+      environment: "development",
+    });
+
+    if (typeof plugin.configResolved !== "function") {
+      throw new TypeError("Expected configResolved to be a function.");
+    }
+    (plugin.configResolved as (config: { command: string }) => void)({
+      command: "build",
+    });
+
+    if (typeof plugin.resolveId !== "function") {
+      throw new TypeError("Expected resolveId to be a function.");
+    }
+    const result = (plugin.resolveId as (source: string) => unknown)(
+      "@esm.sh/react",
+    );
+
+    expect(result).toEqual({ id: "@esm.sh/react", external: true });
+  });
+
+  test("dev server mode resolves to the real URL instead of the bare specifier", () => {
+    const plugin = externalizeRuntimeComposition({
+      manifest: {
+        ...manifest,
+        externalDeps: [{ name: "react", version: "19.2.4" }],
+      },
+      environment: "development",
+    });
+
+    if (typeof plugin.configResolved !== "function") {
+      throw new TypeError("Expected configResolved to be a function.");
+    }
+    (plugin.configResolved as (config: { command: string }) => void)({
+      command: "serve",
+    });
+
+    if (typeof plugin.resolveId !== "function") {
+      throw new TypeError("Expected resolveId to be a function.");
+    }
+    const result = (plugin.resolveId as (source: string) => unknown)(
+      "@esm.sh/react",
+    );
+
+    expect(result).toEqual({
+      id: "https://esm.sh/react@19.2.4",
+      external: true,
+    });
+  });
+
+  test("dev server mode resolves a subpath entry to its own real URL, not the catch-all prefix", () => {
+    const plugin = externalizeRuntimeComposition({
+      manifest: {
+        ...manifest,
+        externalDeps: [{ name: "react-dom/client", version: "19.2.4" }],
+      },
+      environment: "development",
+    });
+
+    if (typeof plugin.configResolved !== "function") {
+      throw new TypeError("Expected configResolved to be a function.");
+    }
+    (plugin.configResolved as (config: { command: string }) => void)({
+      command: "serve",
+    });
+
+    if (typeof plugin.resolveId !== "function") {
+      throw new TypeError("Expected resolveId to be a function.");
+    }
+    const result = (plugin.resolveId as (source: string) => unknown)(
+      "@esm.sh/react-dom/client",
+    );
+
+    expect(result).toEqual({
+      id: "https://esm.sh/react-dom@19.2.4/client",
+      external: true,
+    });
+  });
+
+  test("resolveId still returns null for a non-external specifier in dev server mode", () => {
+    const plugin = externalizeRuntimeComposition({
+      manifest,
+      environment: "development",
+    });
+
+    if (typeof plugin.configResolved !== "function") {
+      throw new TypeError("Expected configResolved to be a function.");
+    }
+    (plugin.configResolved as (config: { command: string }) => void)({
+      command: "serve",
+    });
+
+    if (typeof plugin.resolveId !== "function") {
+      throw new TypeError("Expected resolveId to be a function.");
+    }
+    const result = (plugin.resolveId as (source: string) => unknown)("lodash");
+
+    expect(result).toBeNull();
   });
 });
 
