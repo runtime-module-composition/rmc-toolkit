@@ -1,11 +1,12 @@
 import type {
+  ExternalDepEntry,
   ImportMap,
   RuntimeCompositionManifest,
   RuntimeEnvironment,
   SharedDependencyConfig,
   SliceConfig,
 } from "./types.js";
-import { joinUrl } from "./manifest.js";
+import { joinUrl, splitPackageSpecifier } from "./manifest.js";
 
 const resolveSharedDependencyUrl = (
   config: SharedDependencyConfig,
@@ -40,11 +41,6 @@ export type CreateImportMapOptions = {
 const ensurePrefix = (value: string): string =>
   value.endsWith("/") ? value : `${value}/`;
 
-const buildDepsQuery = (peerDeps: Record<string, string>): string =>
-  Object.entries(peerDeps)
-    .map(([name, version]) => `${name}@${version}`)
-    .join(",");
-
 const applyDevFlag = (value: string, externalDepsOrigin: string): string => {
   if (!value.startsWith(externalDepsOrigin)) {
     return value;
@@ -64,6 +60,68 @@ const resolveExternalDepsOrigin = (
   manifest.environments?.[environment]?.externalDepsOrigin ??
   manifest.externalDepsOrigin;
 
+type VersionIndexEntry = { version: string; entryName: string };
+
+/**
+ * One basePackage -> version lookup built from every externalDeps entry.
+ * If two entries share a basePackage but declare different versions, the
+ * FIRST-declared one wins here (used only for resolving other entries'
+ * peerDeps references) — each entry's own URL is still built from its own
+ * declared version regardless of what wins this lookup, so a genuine
+ * conflict stays visible in the generated map rather than being silently
+ * normalized away. See validateManifest for the diagnostic that surfaces
+ * this class of mistake.
+ */
+const buildVersionIndex = (
+  entries: ExternalDepEntry[],
+): Map<string, VersionIndexEntry> => {
+  const index = new Map<string, VersionIndexEntry>();
+
+  for (const entry of entries) {
+    const { basePackage } = splitPackageSpecifier(entry.name);
+    if (!index.has(basePackage)) {
+      index.set(basePackage, { version: entry.version, entryName: entry.name });
+    }
+  }
+
+  return index;
+};
+
+/** Inserts `@version` right after the base package, preserving any subpath:
+ *  "react-dom/client" + "19.2.4" -> ".../react-dom@19.2.4/client". */
+const buildVersionedUrl = (origin: string, name: string, version: string): string => {
+  const { basePackage, subpath } = splitPackageSpecifier(name);
+  const versionedPath = subpath
+    ? `${basePackage}@${version}/${subpath}`
+    : `${basePackage}@${version}`;
+  return joinUrl(origin, versionedPath);
+};
+
+const resolvePeerNames = (
+  entry: ExternalDepEntry,
+  defaultPeerDeps: string[] | undefined,
+): string[] => {
+  if (entry.peerDeps === false) {
+    return [];
+  }
+  return entry.peerDeps ?? defaultPeerDeps ?? [];
+};
+
+/** A peer name with no matching externalDeps entry is silently omitted —
+ *  createImportMap never throws; validateManifest is where that mistake
+ *  gets surfaced, at warning level. */
+const buildDepsQuery = (
+  peerNames: string[],
+  versionIndex: Map<string, VersionIndexEntry>,
+): string =>
+  peerNames
+    .map((peerName) => {
+      const resolved = versionIndex.get(peerName);
+      return resolved ? `${peerName}@${resolved.version}` : null;
+    })
+    .filter((value): value is string => value !== null)
+    .join(",");
+
 export const createImportMap = (
   manifest: RuntimeCompositionManifest,
   options: CreateImportMapOptions = {},
@@ -79,17 +137,16 @@ export const createImportMap = (
   if (externalDepsOrigin) {
     imports[externalDepsPrefix] = ensurePrefix(externalDepsOrigin);
 
-    for (const entry of manifest.externalDeps ?? []) {
-      const name = typeof entry === "string" ? entry : entry.name;
-      const peerDeps =
-        typeof entry === "string" ? manifest.defaultPeerDeps : entry.peerDeps;
+    const externalDeps = manifest.externalDeps ?? [];
+    const versionIndex = buildVersionIndex(externalDeps);
 
-      const specifier = `${externalDepsPrefix}${name}`;
-      const baseUrl = joinUrl(externalDepsOrigin, name);
+    for (const entry of externalDeps) {
+      const specifier = `${externalDepsPrefix}${entry.name}`;
+      const baseUrl = buildVersionedUrl(externalDepsOrigin, entry.name, entry.version);
+      const peerNames = resolvePeerNames(entry, manifest.defaultPeerDeps);
+      const depsQuery = buildDepsQuery(peerNames, versionIndex);
 
-      imports[specifier] = peerDeps
-        ? `${baseUrl}?deps=${buildDepsQuery(peerDeps)}`
-        : baseUrl;
+      imports[specifier] = depsQuery ? `${baseUrl}?deps=${depsQuery}` : baseUrl;
     }
   }
 

@@ -100,18 +100,22 @@ describe("runtime composition core", () => {
     });
   });
 
-  test("generates externalDeps entries with defaultPeerDeps applied to bare strings", () => {
+  test("generates externalDeps entries with defaultPeerDeps resolved from a sibling entry's version", () => {
     expect(
       createImportMap({
         ...manifest,
-        externalDeps: ["zustand"],
-        defaultPeerDeps: { react: "19.2.4" },
+        externalDeps: [
+          { name: "react", version: "19.2.4", peerDeps: false },
+          { name: "zustand", version: "4.5.0" },
+        ],
+        defaultPeerDeps: ["react"],
       }),
     ).toEqual({
       imports: {
         "@acme/": "https://assets.example.com/",
         "@esm.sh/": "https://esm.sh/",
-        "@esm.sh/zustand": "https://esm.sh/zustand?deps=react@19.2.4",
+        "@esm.sh/react": "https://esm.sh/react@19.2.4",
+        "@esm.sh/zustand": "https://esm.sh/zustand@4.5.0?deps=react@19.2.4",
       },
     });
   });
@@ -120,14 +124,18 @@ describe("runtime composition core", () => {
     expect(
       createImportMap({
         ...manifest,
-        externalDeps: [{ name: "date-fns", peerDeps: false }],
-        defaultPeerDeps: { react: "19.2.4" },
+        externalDeps: [
+          { name: "react", version: "19.2.4", peerDeps: false },
+          { name: "date-fns", version: "3.6.0", peerDeps: false },
+        ],
+        defaultPeerDeps: ["react"],
       }),
     ).toEqual({
       imports: {
         "@acme/": "https://assets.example.com/",
         "@esm.sh/": "https://esm.sh/",
-        "@esm.sh/date-fns": "https://esm.sh/date-fns",
+        "@esm.sh/react": "https://esm.sh/react@19.2.4",
+        "@esm.sh/date-fns": "https://esm.sh/date-fns@3.6.0",
       },
     });
   });
@@ -137,19 +145,24 @@ describe("runtime composition core", () => {
       createImportMap({
         ...manifest,
         externalDeps: [
+          { name: "react", version: "19.2.4", peerDeps: false },
+          { name: "react-dom", version: "19.2.4", peerDeps: false },
           {
             name: "@radix-ui/themes",
-            peerDeps: { react: "19.2.4", "react-dom": "19.2.4/client" },
+            version: "3.0.0",
+            peerDeps: ["react", "react-dom"],
           },
         ],
-        defaultPeerDeps: { react: "19.2.4" },
+        defaultPeerDeps: ["react"],
       }),
     ).toEqual({
       imports: {
         "@acme/": "https://assets.example.com/",
         "@esm.sh/": "https://esm.sh/",
+        "@esm.sh/react": "https://esm.sh/react@19.2.4",
+        "@esm.sh/react-dom": "https://esm.sh/react-dom@19.2.4",
         "@esm.sh/@radix-ui/themes":
-          "https://esm.sh/@radix-ui/themes?deps=react@19.2.4,react-dom@19.2.4/client",
+          "https://esm.sh/@radix-ui/themes@3.0.0?deps=react@19.2.4,react-dom@19.2.4",
       },
     });
   });
@@ -159,8 +172,11 @@ describe("runtime composition core", () => {
       createImportMap(
         {
           ...manifest,
-          externalDeps: ["zustand"],
-          defaultPeerDeps: { react: "19.2.4" },
+          externalDeps: [
+            { name: "react", version: "19.2.4", peerDeps: false },
+            { name: "zustand", version: "4.5.0" },
+          ],
+          defaultPeerDeps: ["react"],
         },
         { devDeps: true },
       ),
@@ -168,22 +184,112 @@ describe("runtime composition core", () => {
       imports: {
         "@acme/": "https://assets.example.com/",
         "@esm.sh/": "https://esm.sh/",
-        "@esm.sh/zustand": "https://esm.sh/zustand?deps=react@19.2.4&dev",
+        "@esm.sh/react": "https://esm.sh/react@19.2.4?dev",
+        "@esm.sh/zustand": "https://esm.sh/zustand@4.5.0?deps=react@19.2.4&dev",
       },
     });
   });
 
-  test("bare-string externalDeps entries resolve with no ?deps= query when defaultPeerDeps is unset", () => {
+  test("externalDeps entries resolve with no ?deps= query when defaultPeerDeps is unset", () => {
     expect(
       createImportMap({
         ...manifest,
-        externalDeps: ["zustand"],
+        externalDeps: [{ name: "zustand", version: "4.5.0" }],
       }),
     ).toEqual({
       imports: {
         "@acme/": "https://assets.example.com/",
         "@esm.sh/": "https://esm.sh/",
-        "@esm.sh/zustand": "https://esm.sh/zustand",
+        "@esm.sh/zustand": "https://esm.sh/zustand@4.5.0",
+      },
+    });
+  });
+
+  test("externalDeps entry's specifier key excludes the version while the URL includes it", () => {
+    expect(
+      createImportMap({
+        ...manifest,
+        externalDeps: [{ name: "react", version: "19.2.4" }],
+      }),
+    ).toEqual({
+      imports: {
+        "@acme/": "https://assets.example.com/",
+        "@esm.sh/": "https://esm.sh/",
+        "@esm.sh/react": "https://esm.sh/react@19.2.4",
+      },
+    });
+  });
+
+  test("a subpath externalDeps entry inserts the version after the base package, before the subpath", () => {
+    expect(
+      createImportMap({
+        ...manifest,
+        externalDeps: [{ name: "react-dom/client", version: "19.2.4" }],
+      }),
+    ).toEqual({
+      imports: {
+        "@acme/": "https://assets.example.com/",
+        "@esm.sh/": "https://esm.sh/",
+        "@esm.sh/react-dom/client": "https://esm.sh/react-dom@19.2.4/client",
+      },
+    });
+  });
+
+  test("an unresolvable peerDeps name is silently omitted rather than throwing", () => {
+    expect(
+      createImportMap({
+        ...manifest,
+        externalDeps: [
+          { name: "react", version: "19.2.4", peerDeps: false },
+          {
+            name: "@radix-ui/themes",
+            version: "3.0.0",
+            peerDeps: ["react", "svelte"],
+          },
+        ],
+      }),
+    ).toEqual({
+      imports: {
+        "@acme/": "https://assets.example.com/",
+        "@esm.sh/": "https://esm.sh/",
+        "@esm.sh/react": "https://esm.sh/react@19.2.4",
+        // "svelte" has no externalDeps entry, so it's silently dropped from
+        // the query instead of throwing — only "react" resolves.
+        "@esm.sh/@radix-ui/themes":
+          "https://esm.sh/@radix-ui/themes@3.0.0?deps=react@19.2.4",
+      },
+    });
+  });
+
+  test("entries sharing a base package with different versions each keep their own URL, and peer lookups use the first-declared version", () => {
+    expect(
+      createImportMap({
+        ...manifest,
+        externalDeps: [
+          { name: "react-dom", version: "19.2.4", peerDeps: false },
+          { name: "react-dom/client", version: "19.2.5", peerDeps: false },
+          { name: "react", version: "19.2.4", peerDeps: false },
+          {
+            name: "@radix-ui/themes",
+            version: "3.0.0",
+            peerDeps: ["react-dom"],
+          },
+        ],
+      }),
+    ).toEqual({
+      imports: {
+        "@acme/": "https://assets.example.com/",
+        "@esm.sh/": "https://esm.sh/",
+        // Each entry's own URL always uses its own declared version — the
+        // conflict (19.2.4 vs 19.2.5) stays visible here, it's never
+        // silently normalized to one value.
+        "@esm.sh/react-dom": "https://esm.sh/react-dom@19.2.4",
+        "@esm.sh/react-dom/client": "https://esm.sh/react-dom@19.2.5/client",
+        "@esm.sh/react": "https://esm.sh/react@19.2.4",
+        // Peer lookup for "react-dom" uses the FIRST-declared version
+        // (19.2.4, from the "react-dom" entry, not "react-dom/client").
+        "@esm.sh/@radix-ui/themes":
+          "https://esm.sh/@radix-ui/themes@3.0.0?deps=react-dom@19.2.4",
       },
     });
   });
@@ -293,11 +399,14 @@ describe("runtime composition core", () => {
   });
 
   test("createImportMapBootstrapScript's embedded dev-flag logic matches createImportMap's own devDeps behavior", () => {
-    const manifestWithExternalDeps = {
+    const manifestWithExternalDeps = defineManifest({
       ...manifest,
-      externalDeps: ["zustand"],
-      defaultPeerDeps: { react: "19.2.4" },
-    };
+      externalDeps: [
+        { name: "react", version: "19.2.4", peerDeps: false },
+        { name: "zustand", version: "4.5.0" },
+      ],
+      defaultPeerDeps: ["react"],
+    });
 
     const expectedWithDevDeps = createImportMap(manifestWithExternalDeps, {
       devDeps: true,

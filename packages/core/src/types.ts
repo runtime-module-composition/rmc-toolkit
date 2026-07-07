@@ -41,12 +41,18 @@ export type PackageSpecifier = {
   subpath: string | null;
 };
 
-export type ExternalDepEntry =
-  | string
-  | {
-      name: string;
-      peerDeps?: Record<string, string> | false;
-    };
+export type ExternalDepEntry = {
+  /** Bare package name, or a subpath import, e.g. "react" or "react-dom/client". */
+  name: string;
+  /** Always required — this is what prevents a bare entry from resolving to
+   *  an unpinned "latest" CDN build. */
+  version: string;
+  /** Peer package NAMES (not versions) to pin via esm.sh's `?deps=` query.
+   *  Versions are looked up from those names' own externalDeps entries at
+   *  generation time — never hand-typed here. `false` opts this entry out
+   *  of `defaultPeerDeps`. */
+  peerDeps?: string[] | false;
+};
 
 export type RuntimeCompositionManifest = {
   namespace: string;
@@ -59,7 +65,9 @@ export type RuntimeCompositionManifest = {
   sliceOverrides?: Record<string, SliceConfig>;
   routeOverrides?: Record<string, RouteOverrideConfig>;
   externalDeps?: ExternalDepEntry[];
-  defaultPeerDeps?: Record<string, string>;
+  /** Peer package NAMES applied automatically to every externalDeps entry
+   *  that doesn't set its own `peerDeps`. */
+  defaultPeerDeps?: string[];
 };
 
 export type RuntimeRouteMatch = {
