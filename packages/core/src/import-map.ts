@@ -221,3 +221,36 @@ export const createImportMapBootstrapScript = (
 })();
 `;
 };
+
+/**
+ * Resolves a specifier against an already-generated ImportMap the same way
+ * a browser resolves import maps: an exact key wins; otherwise the longest
+ * key ending in "/" that the specifier starts with (a prefix mapping),
+ * with the remainder appended to that prefix's target. Returns undefined
+ * if nothing matches.
+ */
+export const resolveImportMapSpecifier = (
+  importMap: ImportMap,
+  specifier: string,
+): string | undefined => {
+  if (specifier in importMap.imports) {
+    return importMap.imports[specifier];
+  }
+
+  let bestPrefix: string | undefined;
+  for (const key of Object.keys(importMap.imports)) {
+    if (
+      key.endsWith("/") &&
+      specifier.startsWith(key) &&
+      (bestPrefix === undefined || key.length > bestPrefix.length)
+    ) {
+      bestPrefix = key;
+    }
+  }
+
+  if (bestPrefix === undefined) {
+    return undefined;
+  }
+
+  return importMap.imports[bestPrefix] + specifier.slice(bestPrefix.length);
+};

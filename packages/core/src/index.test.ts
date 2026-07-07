@@ -8,6 +8,7 @@ import {
   createRuntimeHostObservable,
   defineManifest,
   notifyInternalNavigation,
+  resolveImportMapSpecifier,
   resolveRoute,
   splitPackageSpecifier,
   validateManifest,
@@ -292,6 +293,49 @@ describe("runtime composition core", () => {
           "https://esm.sh/@radix-ui/themes@3.0.0?deps=react-dom@19.2.4",
       },
     });
+  });
+
+  test("resolveImportMapSpecifier prefers an exact match over a shorter matching prefix", () => {
+    const importMap = createImportMap({
+      ...manifest,
+      externalDeps: [{ name: "react", version: "19.2.4" }],
+    });
+
+    expect(resolveImportMapSpecifier(importMap, "@esm.sh/react")).toBe(
+      "https://esm.sh/react@19.2.4",
+    );
+  });
+
+  test("resolveImportMapSpecifier resolves via the longest matching prefix when no exact key exists", () => {
+    const importMap = createImportMap(manifest);
+
+    expect(resolveImportMapSpecifier(importMap, "@acme/search/index.mjs")).toBe(
+      "https://assets.example.com/search/index.mjs",
+    );
+  });
+
+  test("resolveImportMapSpecifier prefers the longest of two overlapping prefix keys", () => {
+    const importMap = createImportMap(
+      {
+        ...manifest,
+        environments: {
+          development: {
+            sliceOrigins: { search: "http://localhost:5174" },
+          },
+        },
+      },
+      { environment: "development" },
+    );
+
+    expect(resolveImportMapSpecifier(importMap, "@acme/search/index.mjs")).toBe(
+      "http://localhost:5174/index.mjs",
+    );
+  });
+
+  test("resolveImportMapSpecifier returns undefined when nothing matches", () => {
+    const importMap = createImportMap(manifest);
+
+    expect(resolveImportMapSpecifier(importMap, "lodash")).toBeUndefined();
   });
 
   test("resolves routes by convention without explicit slice config", () => {
