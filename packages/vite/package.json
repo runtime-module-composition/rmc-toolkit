@@ -1,6 +1,6 @@
 {
   "name": "@rmc-toolkit/vite",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,15 +17,14 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@rmc-toolkit/core": "0.1.0",
+    "@rmc-toolkit/core": "0.2.0",
     "vite": ">=5"
   },
   "dependencies": {
-    "@rmc-toolkit/core": "0.1.0",
+    "@rmc-toolkit/core": "0.2.0",
     "vite-plugin-js-importmap-script": "^1.0.0"
   },
   "scripts": {
     "build": "tsc -b"
   }
 }
-

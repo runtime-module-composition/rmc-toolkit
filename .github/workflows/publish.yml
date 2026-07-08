@@ -42,3 +42,6 @@ jobs:
 
       - name: Publish @rmc-toolkit/react
         run: npm publish --workspace packages/react
+
+      - name: Publish @rmc-toolkit/vue
+        run: npm publish --workspace packages/vue
