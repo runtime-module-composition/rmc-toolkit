@@ -23,6 +23,7 @@ export const resolveEntry = (cwd: string, entry?: string): string => {
 export type SliceBuildOptions = {
   mode: string;
   devPort: number;
+  sliceName: string;
   entry?: string;
 };
 
@@ -46,6 +47,11 @@ export const defineSliceBuild = (options: SliceBuildOptions): UserConfig => {
       "process.env.NODE_ENV": JSON.stringify("production"),
     },
     build: {
+      // Lands the slice's own build output at the same {sliceName} path
+      // segment resolveRoute()/createImportMap() already assume it will be
+      // deployed at ({assetsOrigin}/{sliceName}/index.mjs) — see
+      // docs/superpowers/specs/2026-07-07-slice-build-output-path-design.md.
+      outDir: `dist/${options.sliceName}`,
       lib: {
         entry: resolvedEntry,
         formats: ["es"],

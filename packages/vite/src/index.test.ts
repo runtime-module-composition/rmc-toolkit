@@ -60,6 +60,7 @@ describe("vite adapter", () => {
     const config = defineSliceBuild({
       mode: "development",
       devPort: 5301,
+      sliceName: "react-app",
       entry: "src/index.ts",
     });
 

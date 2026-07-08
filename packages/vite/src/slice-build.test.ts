@@ -56,6 +56,7 @@ describe("defineSliceBuild", () => {
     const config = defineSliceBuild({
       mode: "development",
       devPort: 5301,
+      sliceName: "react-app",
       entry: "src/index.tsx",
     });
 
@@ -66,6 +67,7 @@ describe("defineSliceBuild", () => {
     const config = defineSliceBuild({
       mode: "production",
       devPort: 5301,
+      sliceName: "react-app",
       entry: "src/index.tsx",
     });
 
@@ -84,5 +86,27 @@ describe("defineSliceBuild", () => {
     if (typeof lib.fileName === "function") {
       expect(lib.fileName("es", "index")).toBe("index.mjs");
     }
+  });
+
+  test("build mode writes to dist/{sliceName}, not a flat dist/", () => {
+    const config = defineSliceBuild({
+      mode: "production",
+      devPort: 5301,
+      sliceName: "react-app",
+      entry: "src/index.tsx",
+    });
+
+    expect(config.build?.outDir).toBe("dist/react-app");
+  });
+
+  test("dev mode is unaffected by sliceName", () => {
+    const config = defineSliceBuild({
+      mode: "development",
+      devPort: 5301,
+      sliceName: "react-app",
+      entry: "src/index.tsx",
+    });
+
+    expect(config).toEqual({ server: { port: 5301 } });
   });
 });
