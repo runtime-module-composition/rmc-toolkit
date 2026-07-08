@@ -68,10 +68,17 @@ export const createDynamicModuleBoundary = (
     errorFallback = null,
     importer = defaultImporter,
   }: DynamicModuleBoundaryProps): ReactNamespace.ReactElement => {
-    const LazyModule = React.lazy(async () => {
-      const loadedModule = (await importer(specifier)) as ReactRuntimeModule;
-      return loadedModule;
-    });
+    // Memoized by specifier/importer: React.lazy() must return the same
+    // component type across renders, or React treats it as a brand-new
+    // component and remounts (re-suspending) on every parent re-render.
+    const LazyModule = React.useMemo(
+      () =>
+        React.lazy(async () => {
+          const loadedModule = (await importer(specifier)) as ReactRuntimeModule;
+          return loadedModule;
+        }),
+      [specifier, importer],
+    );
     const moduleProps =
       context === undefined
         ? {}
@@ -93,6 +100,10 @@ export const createDynamicModuleBoundary = (
       React.Suspense,
       { fallback },
       React.createElement(ErrorBoundary, {
+        // Keyed by specifier so switching modules mounts a fresh
+        // ErrorBoundary instance instead of reusing one still holding a
+        // previous module's error state.
+        key: specifier,
         fallback: errorFallback,
         children: React.createElement(LazyModule, moduleProps),
       }),

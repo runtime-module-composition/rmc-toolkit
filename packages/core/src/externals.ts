@@ -2,6 +2,7 @@ import type {
   RuntimeCompositionManifest,
   SharedDependencyConfig,
 } from "./types.js";
+import { trimTrailingSlash } from "./manifest.js";
 
 const isSharedExternal = (config: SharedDependencyConfig): boolean =>
   typeof config === "string" ? true : config.external !== false;
@@ -10,7 +11,7 @@ export const listExternalSpecifiers = (
   manifest: RuntimeCompositionManifest,
 ): string[] => {
   const prefixes = [
-    `${manifest.namespace}/`,
+    `${trimTrailingSlash(manifest.namespace)}/`,
     manifest.externalDepsOrigin
       ? (manifest.externalDepsPrefix ?? "@esm.sh/")
       : null,
@@ -31,7 +32,7 @@ export const createExternalMatcher = (
   manifest: RuntimeCompositionManifest,
 ): ((source: string) => boolean) => {
   const exactSpecifiers = new Set(listExternalSpecifiers(manifest));
-  const namespacePrefix = `${manifest.namespace}/`;
+  const namespacePrefix = `${trimTrailingSlash(manifest.namespace)}/`;
   const externalDepsPrefix = manifest.externalDepsOrigin
     ? (manifest.externalDepsPrefix ?? "@esm.sh/")
     : null;
