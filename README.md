@@ -24,13 +24,26 @@ export const manifest = defineManifest({
   namespace: "@acme",
   assetsOrigin: "https://assets.example.com",
   externalDepsOrigin: "https://esm.sh",
-  environments: {
-    development: {
-      sliceOrigins: {
-        search: "http://localhost:5174",
-      },
+  externalDeps: [
+    // The shared React singleton every other entry's peerDeps pins to by
+    // name. Has no peer deps of its own, so it opts out of defaultPeerDeps
+    // rather than self-referencing itself.
+    { name: "react", version: "19.2.7", peerDeps: false },
+    // Needs the same React instance — matches defaultPeerDeps below, so no
+    // peerDeps field needed here.
+    { name: "react-dom/client", version: "19.2.7" },
+    {
+      name: "@radix-ui/themes",
+      version: "3.3.0",
+      // Needs both react and react-dom, which differs from defaultPeerDeps
+      // — their versions are looked up from the entries above at
+      // generation time, never hand-typed here.
+      peerDeps: ["react", "react-dom"],
     },
-  },
+  ],
+  // Applied automatically to every externalDeps entry that doesn't set its
+  // own peerDeps (react-dom/client, above).
+  defaultPeerDeps: ["react"],
 });
 ```
 
