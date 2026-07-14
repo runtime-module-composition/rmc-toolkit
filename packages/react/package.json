@@ -1,6 +1,6 @@
 {
   "name": "@rmc-toolkit/react",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,11 +17,11 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@rmc-toolkit/core": "0.2.1",
+    "@rmc-toolkit/core": "0.2.2",
     "react": ">=18"
   },
   "dependencies": {
-    "@rmc-toolkit/core": "0.2.1"
+    "@rmc-toolkit/core": "0.2.2"
   },
   "scripts": {
     "build": "tsc -b"
