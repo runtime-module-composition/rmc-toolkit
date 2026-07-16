@@ -1,6 +1,6 @@
 {
   "name": "@rmc-toolkit/vue",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "type": "module",
   "repository": {
     "type": "git",
@@ -22,11 +22,11 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@rmc-toolkit/core": "0.2.4",
+    "@rmc-toolkit/core": "0.3.0",
     "vue": ">=3"
   },
   "dependencies": {
-    "@rmc-toolkit/core": "0.2.4"
+    "@rmc-toolkit/core": "0.3.0"
   },
   "scripts": {
     "build": "tsc -b"
