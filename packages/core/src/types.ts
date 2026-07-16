@@ -75,7 +75,6 @@ export type RuntimeRouteMatch = {
   slice?: SliceConfig;
   specifier: string;
   route: string;
-  params: Record<string, string>;
 };
 
 export type RuntimeCompositionDiagnostic = {

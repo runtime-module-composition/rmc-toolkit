@@ -47,7 +47,7 @@ const buildConventionalSpecifier = (
 const matchRoutePattern = (
   pattern: string,
   pathname: string,
-): { matched: boolean; params: Record<string, string>; score: number } => {
+): { matched: boolean; score: number } => {
   const normalizedPattern = normalizePath(pattern);
   const normalizedPathname = normalizePath(pathname);
 
@@ -57,7 +57,6 @@ const matchRoutePattern = (
       matched:
         normalizedPathname === prefix ||
         normalizedPathname.startsWith(`${prefix}/`),
-      params: {},
       score: prefix.length,
     };
   }
@@ -65,14 +64,12 @@ const matchRoutePattern = (
   if (normalizedPattern === normalizedPathname) {
     return {
       matched: true,
-      params: {},
       score: normalizedPattern.length + 1000,
     };
   }
 
   return {
     matched: false,
-    params: {},
     score: -1,
   };
 };
@@ -96,7 +93,6 @@ const resolveExplicitRoute = (
               .split("/")[0] ?? "",
           specifier,
           route: pattern,
-          params: match.params,
           score: match.score + 2000,
         });
       }
@@ -112,7 +108,6 @@ const resolveExplicitRoute = (
           slice,
           specifier: slice.specifier,
           route,
-          params: match.params,
           score: match.score,
         });
       }
@@ -146,7 +141,6 @@ export const resolveRoute = (
     sliceName,
     specifier: buildConventionalSpecifier(manifest, sliceName),
     route: `/${sliceName}/*`,
-    params: {},
   };
 };
 
