@@ -11,7 +11,7 @@
     "build": "tsc -b packages/*",
     "clean": "tsc -b packages/* --clean",
     "test": "vitest run",
-    "typecheck": "tsc -b packages/* --pretty false"
+    "typecheck": "tsc -b packages/* examples/* --pretty false"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
