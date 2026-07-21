@@ -113,6 +113,193 @@ describe("createInjectedModuleBoundary (Vue)", () => {
     app.unmount();
   });
 
+  test("supports an async factory", async () => {
+    mockImportModule.mockResolvedValueOnce({
+      default: async (_deps: { Vue: typeof Vue }) => {
+        await Promise.resolve();
+        return {
+          render() {
+            return h("span", null, "async content");
+          },
+        };
+      },
+    });
+
+    const { InjectedModuleBoundary } = createInjectedModuleBoundary(Vue);
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const app = createApp(InjectedModuleBoundary, { specifier: "async-specifier" });
+    app.mount(container);
+
+    await flushAsync();
+
+    expect(container.textContent).toBe("async content");
+
+    app.unmount();
+  });
+
+  test("does not re-invoke the factory when only fallback changes", async () => {
+    mockImportModule.mockClear();
+    mockImportModule.mockResolvedValue({ default: mockFactory });
+    mockFactory.mockClear();
+
+    const { InjectedModuleBoundary } = createInjectedModuleBoundary(Vue);
+    const fallback = Vue.shallowRef<Vue.Component | undefined>(undefined);
+    const Parent = {
+      setup() {
+        return () =>
+          Vue.h(InjectedModuleBoundary, {
+            specifier: "stable-specifier",
+            ...(fallback.value === undefined ? {} : { fallback: fallback.value }),
+          });
+      },
+    };
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const app = createApp(Parent);
+    app.mount(container);
+    await flushAsync();
+
+    expect(mockImportModule).toHaveBeenCalledTimes(1);
+
+    fallback.value = { render: () => h("span", null, "loading") };
+    await flushAsync();
+
+    expect(mockImportModule).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toBe("injected content");
+
+    app.unmount();
+  });
+
+  test("switching specifier re-invokes the factory rather than reusing a stale component", async () => {
+    mockImportModule.mockClear();
+    mockImportModule.mockResolvedValue({ default: mockFactory });
+    mockFactory.mockClear();
+
+    const { InjectedModuleBoundary } = createInjectedModuleBoundary(Vue);
+    const specifier = Vue.ref("first-specifier");
+    const Parent = {
+      setup() {
+        return () => Vue.h(InjectedModuleBoundary, { specifier: specifier.value });
+      },
+    };
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const app = createApp(Parent);
+    app.mount(container);
+    await flushAsync();
+
+    specifier.value = "second-specifier";
+    await flushAsync();
+
+    expect(mockImportModule).toHaveBeenCalledTimes(2);
+    expect(mockImportModule).toHaveBeenNthCalledWith(1, "first-specifier");
+    expect(mockImportModule).toHaveBeenNthCalledWith(2, "second-specifier");
+
+    app.unmount();
+  });
+
+  test("ignores a stale rejection from an abandoned specifier's load", async () => {
+    mockImportModule.mockClear();
+    mockFactory.mockClear();
+
+    let rejectFirst: (err: unknown) => void;
+    const firstPromise = new Promise((_resolve, reject) => {
+      rejectFirst = reject;
+    });
+
+    mockImportModule.mockImplementationOnce(() => firstPromise as never);
+    mockImportModule.mockResolvedValueOnce({ default: mockFactory });
+
+    const ErrorFallback = { render: () => h("span", null, "failed") };
+    const { InjectedModuleBoundary } = createInjectedModuleBoundary(Vue);
+    const specifier = Vue.ref("first-specifier");
+    const Parent = {
+      setup() {
+        return () =>
+          Vue.h(InjectedModuleBoundary, {
+            specifier: specifier.value,
+            errorFallback: ErrorFallback,
+          });
+      },
+    };
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const app = createApp(Parent);
+    app.mount(container);
+    await flushAsync();
+
+    specifier.value = "second-specifier";
+    await flushAsync();
+
+    expect(container.textContent).toBe("injected content");
+
+    rejectFirst!(new Error("stale rejection"));
+    await flushAsync();
+
+    expect(container.textContent).toBe("injected content");
+    expect(mockImportModule).toHaveBeenCalledTimes(2);
+    expect(mockImportModule).toHaveBeenNthCalledWith(1, "first-specifier");
+    expect(mockImportModule).toHaveBeenNthCalledWith(2, "second-specifier");
+
+    app.unmount();
+  });
+
+  test("ignores a stale rejection from an abandoned load even when the specifier switches back to its original value", async () => {
+    mockImportModule.mockClear();
+    mockFactory.mockClear();
+
+    let rejectFirstA: (err: unknown) => void;
+    const firstAPromise = new Promise((_resolve, reject) => {
+      rejectFirstA = reject;
+    });
+
+    mockImportModule.mockImplementationOnce(() => firstAPromise as never);
+    mockImportModule.mockResolvedValueOnce({ default: mockFactory });
+    mockImportModule.mockResolvedValueOnce({ default: mockFactory });
+
+    const ErrorFallback = { render: () => h("span", null, "failed") };
+    const { InjectedModuleBoundary } = createInjectedModuleBoundary(Vue);
+    const specifier = Vue.ref("A");
+    const Parent = {
+      setup() {
+        return () =>
+          Vue.h(InjectedModuleBoundary, {
+            specifier: specifier.value,
+            errorFallback: ErrorFallback,
+          });
+      },
+    };
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const app = createApp(Parent);
+    app.mount(container);
+    await flushAsync();
+
+    specifier.value = "B";
+    await flushAsync();
+
+    specifier.value = "A";
+    await flushAsync();
+
+    expect(container.textContent).toBe("injected content");
+
+    rejectFirstA!(new Error("stale rejection from the first A load"));
+    await flushAsync();
+
+    expect(container.textContent).toBe("injected content");
+    expect(mockImportModule).toHaveBeenCalledTimes(3);
+    expect(mockImportModule).toHaveBeenNthCalledWith(1, "A");
+    expect(mockImportModule).toHaveBeenNthCalledWith(2, "B");
+    expect(mockImportModule).toHaveBeenNthCalledWith(3, "A");
+
+    app.unmount();
+  });
+
   test("catches a factory that throws and renders errorFallback", async () => {
     mockImportModule.mockResolvedValueOnce({
       default: () => {

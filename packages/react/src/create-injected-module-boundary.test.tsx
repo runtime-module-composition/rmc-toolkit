@@ -129,4 +129,27 @@ describe("InjectedModuleBoundary", () => {
 
     root.unmount();
   });
+
+  test("switching specifier re-invokes the factory rather than reusing a stale component", async () => {
+    mockImportModule.mockClear();
+    mockImportModule.mockResolvedValue({ default: mockFactory });
+    mockFactory.mockClear();
+
+    const { InjectedModuleBoundary } = createInjectedModuleBoundary(React);
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(<InjectedModuleBoundary specifier="first-specifier" />);
+    });
+    await act(async () => {
+      root.render(<InjectedModuleBoundary specifier="second-specifier" />);
+    });
+
+    expect(mockImportModule).toHaveBeenCalledTimes(2);
+    expect(mockImportModule).toHaveBeenNthCalledWith(1, "first-specifier");
+    expect(mockImportModule).toHaveBeenNthCalledWith(2, "second-specifier");
+
+    root.unmount();
+  });
 });
