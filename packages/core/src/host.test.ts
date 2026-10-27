@@ -239,10 +239,10 @@ describe("createRuntimeHost", () => {
     });
 
     const secondCall = host.resolveAndMount("/cart");
-    await secondCall;
-
+    // "/cart"'s own cycle is now queued behind "/search"'s still-unsettled
+    // mount() and cannot proceed until that settles.
     resolveSearchMount!();
-    await firstCall;
+    await Promise.all([firstCall, secondCall]);
 
     expect(onReady).toHaveBeenCalledTimes(1);
     expect(onReady).toHaveBeenCalledWith("/cart");
@@ -378,5 +378,209 @@ describe("createRuntimeHost", () => {
     await pendingCall;
 
     expect(searchModule.mount).not.toHaveBeenCalled();
+  });
+
+  test("a call invalidated by destroy() stays invalidated even after a later navigation also advances the token", async () => {
+    const target = document.createElement("div");
+    const searchModule = createMockModule();
+    const cartModule = createMockModule();
+
+    let resolveSearchImport: (value: { default: RuntimeModule }) => void;
+    const searchImportPromise = new Promise<{ default: RuntimeModule }>((resolve) => {
+      resolveSearchImport = resolve;
+    });
+
+    const importer = vi.fn(async (specifier: string) => {
+      if (specifier === "@acme/search/index.mjs") {
+        return searchImportPromise;
+      }
+      return { default: cartModule };
+    });
+
+    const host = createRuntimeHost({ manifest, target, importer });
+
+    const staleCall = host.resolveAndMount("/search");
+    await host.destroy();
+
+    const newerCall = host.resolveAndMount("/cart");
+    await newerCall;
+
+    resolveSearchImport!({ default: searchModule });
+    await staleCall;
+
+    expect(searchModule.mount).not.toHaveBeenCalled();
+    expect(cartModule.unmount).not.toHaveBeenCalled();
+  });
+
+  test("does not throw when unmounting a module that has no unmount() during a no-match navigation", async () => {
+    const onError = vi.fn();
+    const target = document.createElement("div");
+    const searchModule: RuntimeModule = { mount: vi.fn(async () => {}) };
+    const importer = vi.fn(async () => ({ default: searchModule }));
+
+    const host = createRuntimeHost({ manifest, target, importer, onError });
+    await host.resolveAndMount("/search");
+    await host.resolveAndMount("/");
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect((onError.mock.calls[0]?.[0] as Error).message).toBe("No slice matches /");
+  });
+
+  test("does not throw when switching away from a module that has no unmount()", async () => {
+    const target = document.createElement("div");
+    const searchModule: RuntimeModule = { mount: vi.fn(async () => {}) };
+    const cartModule = createMockModule();
+    const importer = vi.fn(async (specifier: string) => ({
+      default: specifier === "@acme/search/index.mjs" ? searchModule : cartModule,
+    }));
+
+    const host = createRuntimeHost({ manifest, target, importer });
+    await host.resolveAndMount("/search");
+    await host.resolveAndMount("/cart");
+
+    expect(cartModule.mount).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not throw when destroy() unmounts a module that has no unmount()", async () => {
+    const target = document.createElement("div");
+    const searchModule: RuntimeModule = { mount: vi.fn(async () => {}) };
+    const importer = vi.fn(async () => ({ default: searchModule }));
+
+    const host = createRuntimeHost({ manifest, target, importer });
+    await host.resolveAndMount("/search");
+
+    await expect(host.destroy()).resolves.toBeUndefined();
+  });
+
+  test("does not call onError for a stale no-match navigation that is superseded before its unmount() resolves", async () => {
+    const onError = vi.fn();
+    const target = document.createElement("div");
+
+    let resolveUnmount: () => void;
+    const unmountPromise = new Promise<void>((resolve) => {
+      resolveUnmount = resolve;
+    });
+    const searchModule: RuntimeModule = {
+      mount: vi.fn(async () => {}),
+      unmount: vi.fn(() => unmountPromise),
+    };
+    const importer = vi.fn(async () => ({ default: searchModule }));
+
+    const host = createRuntimeHost({ manifest, target, importer, onError });
+    await host.resolveAndMount("/search");
+
+    const staleCall = host.resolveAndMount("/");
+    await vi.waitFor(() => {
+      expect(searchModule.unmount).toHaveBeenCalled();
+    });
+
+    // A newer navigation back to the already-mounted module supersedes the
+    // no-match call while it's still awaiting that same unmount().
+    const newerCall = host.resolveAndMount("/search");
+
+    resolveUnmount!();
+    await Promise.all([staleCall, newerCall]);
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  test("does not call onError for a stale no-match navigation whose unmount() rejects after being superseded", async () => {
+    const onError = vi.fn();
+    const target = document.createElement("div");
+
+    let rejectUnmount: (error: Error) => void;
+    const unmountPromise = new Promise<void>((_resolve, reject) => {
+      rejectUnmount = reject;
+    });
+    const searchModule: RuntimeModule = {
+      mount: vi.fn(async () => {}),
+      unmount: vi.fn(() => unmountPromise),
+    };
+    const importer = vi.fn(async () => ({ default: searchModule }));
+
+    const host = createRuntimeHost({ manifest, target, importer, onError });
+    await host.resolveAndMount("/search");
+
+    const staleCall = host.resolveAndMount("/");
+    await vi.waitFor(() => {
+      expect(searchModule.unmount).toHaveBeenCalled();
+    });
+
+    const newerCall = host.resolveAndMount("/search");
+
+    rejectUnmount!(new Error("unmount blew up"));
+    await Promise.all([staleCall, newerCall]);
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  test("does not call onError for a stale import rejection after a newer call has already mounted its module", async () => {
+    const onError = vi.fn();
+    const target = document.createElement("div");
+
+    let rejectSearchImport: (error: Error) => void;
+    const searchImportPromise = new Promise<{ default: RuntimeModule }>((_resolve, reject) => {
+      rejectSearchImport = reject;
+    });
+    const cartModule = createMockModule();
+
+    const importer = vi.fn(async (specifier: string) => {
+      if (specifier === "@acme/search/index.mjs") {
+        return searchImportPromise;
+      }
+      return { default: cartModule };
+    });
+
+    const host = createRuntimeHost({ manifest, target, importer, onError });
+
+    const staleCall = host.resolveAndMount("/search");
+    const newerCall = host.resolveAndMount("/cart");
+    await newerCall;
+
+    rejectSearchImport!(new Error("network failure"));
+    await staleCall;
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(cartModule.mount).toHaveBeenCalledTimes(1);
+  });
+
+  test("does not unmount a module while that module's own mount() is still unresolved", async () => {
+    const target = document.createElement("div");
+
+    let resolveSearchMount: () => void;
+    const searchMountPromise = new Promise<void>((resolve) => {
+      resolveSearchMount = resolve;
+    });
+    const searchModule: RuntimeModule = {
+      mount: vi.fn(() => searchMountPromise),
+      unmount: vi.fn(async () => {}),
+    };
+    const cartModule = createMockModule();
+
+    const importer = vi.fn(async (specifier: string) => ({
+      default: specifier === "@acme/search/index.mjs" ? searchModule : cartModule,
+    }));
+
+    const host = createRuntimeHost({ manifest, target, importer });
+
+    const firstCall = host.resolveAndMount("/search");
+    await vi.waitFor(() => {
+      expect(searchModule.mount).toHaveBeenCalled();
+    });
+
+    const secondCall = host.resolveAndMount("/cart");
+
+    // Flush several microtask turns without ever settling "/search"'s own
+    // mount() -- if the host unmounts it anyway during this window, it did
+    // so concurrently with that module's own still-outstanding mount().
+    for (let i = 0; i < 4; i += 1) {
+      await Promise.resolve();
+    }
+    expect(searchModule.unmount).not.toHaveBeenCalled();
+
+    resolveSearchMount!();
+    await Promise.all([firstCall, secondCall]);
+
+    expect(cartModule.mount).toHaveBeenCalledTimes(1);
   });
 });

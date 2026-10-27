@@ -37,6 +37,14 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
   let latestToken = 0;
   let currentSpecifier: string | null = null;
   let currentModule: RuntimeModule | null = null;
+  // Serializes every unmount()/mount() cycle against `target`, so one
+  // never runs concurrently with another — including the case where an
+  // older call's own mount() is still in flight when a newer call
+  // supersedes it. A call whose token is no longer latest by the time its
+  // turn comes up skips its cycle entirely: that's also what gives the
+  // host its coalescing behavior, since of several calls queued up behind
+  // a slow cycle, only the most recent one ever actually touches the DOM.
+  let cycleQueue: Promise<void> = Promise.resolve();
 
   const resetAndReportError = (error: unknown, path: string): void => {
     currentModule = null;
@@ -44,25 +52,39 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
     onError(error, path);
   };
 
+  const enqueueCycle = (token: number, cycle: () => Promise<void>): Promise<void> => {
+    const turn = cycleQueue.then(() => {
+      if (token !== latestToken) {
+        return;
+      }
+      return cycle();
+    });
+    // The shared queue must keep flowing even when one cycle rejects —
+    // only the caller awaiting this specific turn should see that.
+    cycleQueue = turn.catch(() => {});
+    return turn;
+  };
+
   const resolveAndMount = async (path: string): Promise<void> => {
     const token = ++latestToken;
     const match = resolveRoute(manifest, path);
 
     if (!match) {
-      try {
-        if (currentModule) {
-          await currentModule.unmount?.();
+      return enqueueCycle(token, async () => {
+        try {
+          if (currentModule) {
+            await currentModule.unmount?.();
+          }
+        } catch (error) {
+          if (token === latestToken) {
+            resetAndReportError(error, path);
+          }
+          return;
         }
-      } catch (error) {
         if (token === latestToken) {
-          resetAndReportError(error, path);
+          resetAndReportError(new Error(`No slice matches ${path}`), path);
         }
-        return;
-      }
-      if (token === latestToken) {
-        resetAndReportError(new Error(`No slice matches ${path}`), path);
-      }
-      return;
+      });
     }
 
     // Same module already mounted: everything past this point is the
@@ -79,37 +101,26 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
         await importModule(match.specifier, importer),
       ) as RuntimeModule;
 
-      if (token !== latestToken) {
-        return;
-      }
+      await enqueueCycle(token, async () => {
+        if (currentModule) {
+          await currentModule.unmount?.();
+        }
 
-      if (currentModule) {
-        await currentModule.unmount?.();
-      }
+        // Re-check after unmount: a newer call may have been issued while
+        // this one was awaiting it, even though that newer call is itself
+        // still waiting its own turn in the queue behind this one.
+        if (token !== latestToken) {
+          return;
+        }
 
-      // Re-check after unmount: it's an arbitrary, user-authored async
-      // function that can take any amount of time, so a newer call may have
-      // become latest while this one was awaiting it. Without this check, a
-      // slow unmount could let this call commit stale state on top of a
-      // newer call's already-mounted module.
-      if (token !== latestToken) {
-        return;
-      }
+        currentSpecifier = match.specifier;
+        currentModule = runtimeModule;
+        await runtimeModule.mount(target, { route: match, manifest });
 
-      currentSpecifier = match.specifier;
-      currentModule = runtimeModule;
-      // Accepted, narrower limitation: once mount() is actually called,
-      // there's no clean way to cancel it if a still-newer call starts and
-      // reaches its own mount() before this one finishes. Closing that would
-      // require serializing all resolveAndMount() calls behind a queue/lock,
-      // which is out of scope for the specific bug this token fix closes
-      // (the earlier, easily-hit case of an older call clobbering a newer
-      // call's already-*settled* mount).
-      await runtimeModule.mount(target, { route: match, manifest });
-
-      if (token === latestToken) {
-        onReady(path);
-      }
+        if (token === latestToken) {
+          onReady(path);
+        }
+      });
     } catch (error) {
       if (token === latestToken) {
         resetAndReportError(error, path);
@@ -119,16 +130,19 @@ export const createRuntimeHost = (options: RuntimeHostOptions): RuntimeHost => {
 
   const destroy = async (): Promise<void> => {
     latestToken += 1;
-    if (currentModule) {
-      await currentModule.unmount?.();
-    }
-    currentModule = null;
-    currentSpecifier = null;
-    // Same accepted, narrower limitation as the resolveAndMount-vs-
-    // resolveAndMount case above: if a resolveAndMount() call is already
-    // inside its own (uninterruptible) mount() when destroy() runs, that
-    // mount can still finish after this promise resolves, leaving something
-    // mounted that this host's own bookkeeping no longer reflects.
+    // Unlike enqueueCycle(), destroy()'s own turn always runs once it comes
+    // up — it's a hard teardown, not a request that a later navigation
+    // should be able to coalesce away — but it still waits in the same
+    // queue so it never overlaps a cycle that's already in flight.
+    const turn = cycleQueue.then(async () => {
+      if (currentModule) {
+        await currentModule.unmount?.();
+      }
+      currentModule = null;
+      currentSpecifier = null;
+    });
+    cycleQueue = turn.catch(() => {});
+    await turn;
   };
 
   return { resolveAndMount, destroy };
