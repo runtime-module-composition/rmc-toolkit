@@ -422,6 +422,52 @@ describe("runtime composition core", () => {
     ).toHaveLength(0);
   });
 
+  test("validateManifest errors when an exactImports entry is not an absolute HTTP(S) URL", () => {
+    const diagnostics = validateManifest({
+      ...manifest,
+      exactImports: {
+        "ferry-consent-client": "assets.staging.ferry.rsvp/ferry-consent-client",
+      },
+    });
+
+    expect(diagnostics).toContainEqual({
+      level: "error",
+      code: "exact-import-url",
+      message:
+        'exactImports["ferry-consent-client"] must resolve to an absolute HTTP(S) URL, got "assets.staging.ferry.rsvp/ferry-consent-client".',
+    });
+  });
+
+  test("validateManifest checks every per-environment URL of an object-form exactImports entry", () => {
+    const diagnostics = validateManifest({
+      ...manifest,
+      exactImports: {
+        react: {
+          url: "https://esm.sh/react@19.2.4",
+          environments: { development: "esm.sh/react@19.2.4?dev" },
+        },
+      },
+    });
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: "exact-import-url",
+        message: expect.stringContaining("esm.sh/react@19.2.4?dev"),
+      }),
+    );
+  });
+
+  test("validateManifest does not warn about well-formed exactImports URLs", () => {
+    const diagnostics = validateManifest({
+      ...manifest,
+      exactImports: {
+        react: "https://esm.sh/react@19.2.4",
+      },
+    });
+
+    expect(diagnostics.filter((item) => item.code === "exact-import-url")).toHaveLength(0);
+  });
+
   test("validateManifest warns when externalDeps entries share a base package but declare different versions", () => {
     const diagnostics = validateManifest({
       ...manifest,
