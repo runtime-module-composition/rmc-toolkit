@@ -2,8 +2,19 @@ import type {
   ExternalDepEntry,
   RuntimeCompositionDiagnostic,
   RuntimeCompositionManifest,
+  SharedDependencyConfig,
 } from "./types.js";
 import { splitPackageSpecifier } from "./manifest.js";
+
+/** Every URL a SharedDependencyConfig can resolve to across environments —
+ *  the plain string itself, or the object form's base `url` plus every
+ *  per-environment override. */
+const urlsFor = (config: SharedDependencyConfig): string[] => {
+  if (typeof config === "string") {
+    return [config];
+  }
+  return [config.url, ...Object.values(config.environments ?? {})];
+};
 
 export const validateManifest = (
   manifest: RuntimeCompositionManifest,
@@ -46,6 +57,18 @@ export const validateManifest = (
       code: "external-deps-prefix-format",
       message: "externalDepsPrefix should end with / for import-map prefix matching.",
     });
+  }
+
+  for (const [specifier, config] of Object.entries(manifest.exactImports ?? {})) {
+    for (const url of urlsFor(config)) {
+      if (!/^https?:\/\//.test(url)) {
+        diagnostics.push({
+          level: "error",
+          code: "exact-import-url",
+          message: `exactImports["${specifier}"] must resolve to an absolute HTTP(S) URL, got "${url}".`,
+        });
+      }
+    }
   }
 
   for (const [sliceName, slice] of Object.entries(manifest.sliceOverrides ?? {})) {
