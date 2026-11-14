@@ -1,6 +1,6 @@
 {
   "name": "@rmc-toolkit/react",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "type": "module",
   "repository": {
     "type": "git",
@@ -22,14 +22,13 @@
     "access": "public"
   },
   "peerDependencies": {
-    "@rmc-toolkit/core": "0.5.2",
+    "@rmc-toolkit/core": "0.5.3",
     "react": ">=18"
   },
   "dependencies": {
-    "@rmc-toolkit/core": "0.5.2"
+    "@rmc-toolkit/core": "0.5.3"
   },
   "scripts": {
     "build": "tsc -b"
   }
 }
-
