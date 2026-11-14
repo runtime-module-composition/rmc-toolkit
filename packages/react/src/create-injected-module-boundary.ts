@@ -88,9 +88,16 @@ export const createInjectedModuleBoundary = <TExtraDeps extends object = Record<
 
     return React.createElement(
       React.Suspense,
-      { fallback },
-      React.createElement(ErrorBoundary, {
+      {
+        // Keyed by specifier for the same reason as DynamicModuleBoundary
+        // (see create-dynamic-module-boundary.ts): a persistent Suspense
+        // instance livelocks under startTransition-wrapped specifier
+        // changes, and the per-specifier remount also resets ErrorBoundary's
+        // error state.
         key: specifier,
+        fallback,
+      },
+      React.createElement(ErrorBoundary, {
         fallback: errorFallback,
         children: React.createElement(LazyModule, moduleProps),
       }),
