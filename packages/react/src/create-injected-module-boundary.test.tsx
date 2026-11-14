@@ -152,4 +152,53 @@ describe("InjectedModuleBoundary", () => {
 
     root.unmount();
   });
+
+  test("switching specifier inside startTransition shows the fallback instead of freezing on the old module", async () => {
+    // Same livelock as DynamicModuleBoundary's test of this name (see
+    // index.test.tsx for the full mechanism): a persistent unkeyed Suspense
+    // suspends against a transition-wrapped specifier change and keeps the
+    // old module rendered forever. The Suspense element must be keyed by
+    // specifier so the new boundary's fallback commits immediately.
+    let resolveModuleB!: (module: {
+      default: (deps: { React: typeof React }) => () => string;
+    }) => void;
+    const importer = vi.fn(async (specifier: string) => {
+      if (specifier === "module-a") {
+        return { default: () => () => "module a content" };
+      }
+
+      return new Promise<{ default: (deps: { React: typeof React }) => () => string }>(
+        (resolve) => {
+          resolveModuleB = resolve;
+        },
+      );
+    });
+
+    const { InjectedModuleBoundary } = createInjectedModuleBoundary(React);
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <InjectedModuleBoundary specifier="module-a" importer={importer} fallback="loading" />,
+      );
+    });
+    expect(container.textContent).toBe("module a content");
+
+    await act(async () => {
+      React.startTransition(() => {
+        root.render(
+          <InjectedModuleBoundary specifier="module-b" importer={importer} fallback="loading" />,
+        );
+      });
+    });
+    expect(container.textContent).toBe("loading");
+
+    await act(async () => {
+      resolveModuleB({ default: () => () => "module b content" });
+    });
+    expect(container.textContent).toBe("module b content");
+
+    root.unmount();
+  });
 });

@@ -85,7 +85,7 @@ export const createDynamicModuleBoundary = (
         : ({ context } satisfies { context: RuntimeModuleContext });
 
     // Equivalent to:
-    // <React.Suspense fallback={fallback}>
+    // <React.Suspense key={specifier} fallback={fallback}>
     //   <ErrorBoundary fallback={errorFallback}>
     //     <LazyModule {...moduleProps} />
     //   </ErrorBoundary>
@@ -98,12 +98,23 @@ export const createDynamicModuleBoundary = (
     // accidental extra prop.
     return React.createElement(
       React.Suspense,
-      { fallback },
-      React.createElement(ErrorBoundary, {
-        // Keyed by specifier so switching modules mounts a fresh
-        // ErrorBoundary instance instead of reusing one still holding a
+      {
+        // The Suspense element itself is keyed by specifier, so each module
+        // gets a freshly mounted boundary. A persistent Suspense instance
+        // livelocks under startTransition-wrapped specifier changes
+        // (react-router v7+ wraps every navigation in startTransition):
+        // React keeps the old module on screen while the suspended
+        // transition waits, that render never commits, and any interleaving
+        // state update restarts the transition with a new React.lazy -- the
+        // URL changes but the new module never renders. A boundary newly
+        // mounted during a transition shows its fallback immediately
+        // instead. Remounting under the new key also gives ErrorBoundary a
+        // fresh instance per module, so no key is needed on it to clear a
         // previous module's error state.
         key: specifier,
+        fallback,
+      },
+      React.createElement(ErrorBoundary, {
         fallback: errorFallback,
         children: React.createElement(LazyModule, moduleProps),
       }),

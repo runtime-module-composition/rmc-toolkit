@@ -67,4 +67,52 @@ describe("DynamicModuleBoundary", () => {
     rootA.unmount();
     rootB.unmount();
   });
+
+  test("switching specifier inside startTransition shows the fallback instead of freezing on the old module", async () => {
+    // Reproduces the livelock seen under react-router v7+, which wraps every
+    // navigation in React.startTransition: with a persistent (unkeyed)
+    // Suspense instance, a specifier change that suspends inside a transition
+    // makes React keep the OLD module on screen while it waits for the new
+    // one -- the suspended render never commits, and any interleaving state
+    // update restarts the transition with a fresh React.lazy, so the new
+    // module never renders. Keying the Suspense element by specifier mounts a
+    // fresh boundary per module, and a boundary newly mounted during a
+    // transition shows its fallback immediately.
+    let resolveModuleB!: (module: { default: () => string }) => void;
+    const importer = vi.fn(async (specifier: string) => {
+      if (specifier === "module-a") {
+        return { default: () => "module a content" };
+      }
+
+      return new Promise<{ default: () => string }>((resolve) => {
+        resolveModuleB = resolve;
+      });
+    });
+
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    await act(async () => {
+      root.render(
+        <DynamicModuleBoundary specifier="module-a" importer={importer} fallback="loading" />,
+      );
+    });
+    expect(container.textContent).toBe("module a content");
+
+    await act(async () => {
+      React.startTransition(() => {
+        root.render(
+          <DynamicModuleBoundary specifier="module-b" importer={importer} fallback="loading" />,
+        );
+      });
+    });
+    expect(container.textContent).toBe("loading");
+
+    await act(async () => {
+      resolveModuleB({ default: () => "module b content" });
+    });
+    expect(container.textContent).toBe("module b content");
+
+    root.unmount();
+  });
 });
