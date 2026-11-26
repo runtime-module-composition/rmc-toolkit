@@ -261,3 +261,30 @@ export const resolveImportMapSpecifier = (
   // this invariant still holds.
   return importMap.imports[bestPrefix] + specifier.slice(bestPrefix.length);
 };
+
+export type LocalModuleOverrides = Record<string, string>;
+
+/**
+ * Returns a copy of the manifest with each override added to exactImports,
+ * pointing a specifier at a locally served module. An override replaces an
+ * existing exactImports entry of the same name. The input manifest is not
+ * mutated. Prefix mappings are left as they are, so an exact override wins
+ * over the namespace prefix for its own specifier only.
+ */
+export const withLocalModules = (
+  manifest: RuntimeCompositionManifest,
+  overrides: LocalModuleOverrides,
+): RuntimeCompositionManifest => {
+  for (const [specifier, url] of Object.entries(overrides)) {
+    if (!/^https?:\/\//.test(url)) {
+      throw new Error(
+        `Local module override for "${specifier}" must be an absolute http(s) URL, got "${url}".`,
+      );
+    }
+  }
+
+  return {
+    ...manifest,
+    exactImports: { ...manifest.exactImports, ...overrides },
+  };
+};
