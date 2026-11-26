@@ -132,6 +132,11 @@ export const buildLocalImportMapScript = (
   if (origin === undefined) {
     throw new Error(`localSlice "${localSlice.name}" needs port or origin`);
   }
+  if (!/^https?:\/\//.test(origin)) {
+    throw new Error(
+      `localSlice "${localSlice.name}" origin must be an absolute http(s) URL, got "${origin}".`,
+    );
+  }
 
   const derivedManifest: RuntimeCompositionManifest = {
     ...manifest,

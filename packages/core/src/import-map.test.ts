@@ -36,6 +36,33 @@ describe("withLocalModules", () => {
     expect(resolveImportMapSpecifier(map, "@acme/search/other.mjs")).toBe("https://assets.example.com/search/other.mjs");
   });
 
+  test("beats a sliceOverrides entry with the same specifier and keeps its route", () => {
+    const withSlice = defineManifest({
+      namespace: "@acme",
+      assetsOrigin: "https://assets.example.com",
+      sliceOverrides: {
+        search: {
+          route: "/search",
+          specifier: "@acme/search/index.mjs",
+          entry: "search/custom.mjs",
+          environments: { development: "https://dev.example.com/search.mjs" },
+        },
+      },
+    });
+    const derived = withLocalModules(withSlice, {
+      "@acme/search/index.mjs": `${origin}/repos/search/src/index.tsx`,
+    });
+    const map = createImportMap(derived, { environment: "development" });
+    expect(map.imports["@acme/search/index.mjs"]).toBe(`${origin}/repos/search/src/index.tsx`);
+    expect(derived.sliceOverrides?.search?.route).toBe("/search");
+    expect(withSlice.sliceOverrides?.search?.entry).toBe("search/custom.mjs");
+  });
+
+  test("throws on a prefix-style key ending in a slash, naming the key", () => {
+    expect(() => withLocalModules(manifest, { "@acme/search/": `${origin}/repos/search/src/` }))
+      .toThrow(/@acme\/search\//);
+  });
+
   test("throws on a non-absolute URL, naming the specifier", () => {
     expect(() => withLocalModules(manifest, { "@acme/search/index.mjs": "/repos/search/src/index.tsx" }))
       .toThrow(/@acme\/search\/index\.mjs/);

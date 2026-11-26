@@ -92,6 +92,14 @@ export default {
 
 The override URL for a file inside the dev server's Vite root must be the root-relative URL Vite itself emits for a relative import of that file, not an `/@fs/` path, or the browser instantiates the file twice.
 
+`includeHostedImportMap` only serves the script at `/js/importmap.js`; the host HTML must reference it with exactly this tag, which the ordering plugin finds and moves ahead of other scripts in `<head>`:
+
+```html
+<head>
+  <script data-src-type="importmap" src="/js/importmap.js"></script>
+</head>
+```
+
 For a single slice, `includeHostedImportMap` also accepts `localSlice: { name, port }` or `localSlice: { name, origin }` as a shortcut.
 
 ## Status
