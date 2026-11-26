@@ -1,4 +1,4 @@
-import { defineManifest } from "@rmc-toolkit/core";
+import { defineManifest, withLocalModules } from "@rmc-toolkit/core";
 import { describe, expect, test } from "vitest";
 import {
   buildLocalImportMapScript,
@@ -169,6 +169,19 @@ describe("externalizeRuntimeComposition dev-server resolution", () => {
     const result = (plugin.resolveId as (source: string) => unknown)("lodash");
 
     expect(result).toBeNull();
+  });
+
+  test("resolveId returns a same-origin override URL as external in dev server mode", () => {
+    const derived = withLocalModules(manifest, {
+      "@acme/search/index.mjs": "https://local.example.test:3000/repos/search/src/index.tsx",
+    });
+    const plugin = externalizeRuntimeComposition({ manifest: derived, environment: "development" });
+    (plugin.configResolved as (config: { command: string }) => void)({ command: "serve" });
+    const result = (plugin.resolveId as (source: string) => unknown)("@acme/search/index.mjs");
+    expect(result).toEqual({
+      id: "https://local.example.test:3000/repos/search/src/index.tsx",
+      external: true,
+    });
   });
 });
 
