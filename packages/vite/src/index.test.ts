@@ -212,6 +212,52 @@ describe("includeHostedImportMap", () => {
     expect(script).toContain('"@acme/":"https://assets.example.com/"');
   });
 
+  test("buildLocalImportMapScript formats a full origin when given", () => {
+    const script = buildLocalImportMapScript(manifest, {
+      name: "search",
+      origin: "https://local.example.test:3000",
+    });
+
+    expect(script).toContain('"@acme/search/":"https://local.example.test:3000/"');
+  });
+
+  test("buildLocalImportMapScript throws when neither port nor origin is given", () => {
+    expect(() => buildLocalImportMapScript(manifest, { name: "search" })).toThrow(
+      /port or origin/,
+    );
+  });
+
+  test("serves the import map for the requested environment", () => {
+    const previewManifest = defineManifest({
+      namespace: "@acme",
+      assetsOrigin: "https://assets.example.com",
+      environments: {
+        preview: { assetsOrigin: "https://assets.preview.example.com" },
+      },
+    });
+    const [plugin] = includeHostedImportMap({
+      manifest: previewManifest,
+      environment: "preview",
+    });
+    const { server, middlewares } = createMockServer();
+
+    if (!plugin || typeof plugin.configureServer !== "function") {
+      throw new TypeError("Expected configureServer to be a function.");
+    }
+    (plugin.configureServer as unknown as (server: unknown) => void)(server);
+
+    let body = "";
+    const res: MockResponse = {
+      setHeader: () => {},
+      end: (chunk) => {
+        body = chunk;
+      },
+    };
+    middlewares[0]?.handler({ url: "/", method: "GET" }, res, () => {});
+
+    expect(body).toContain('"@acme/":"https://assets.preview.example.com/"');
+  });
+
   test("serves the generated script from the default middleware path", () => {
     const [plugin] = includeHostedImportMap({ manifest });
     const { server, middlewares } = createMockServer();
