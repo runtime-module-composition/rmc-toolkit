@@ -117,36 +117,49 @@ export const runtimeComposition = (
 
 export type LocalSliceOverride = {
   name: string;
-  port: number;
+  port?: number;
+  origin?: string;
 };
 
 export const buildLocalImportMapScript = (
   manifest: RuntimeCompositionManifest,
   localSlice: LocalSliceOverride,
+  environment: RuntimeEnvironment = "development",
 ): string => {
+  const origin =
+    localSlice.origin ??
+    (localSlice.port !== undefined ? `http://localhost:${localSlice.port}` : undefined);
+  if (origin === undefined) {
+    throw new Error(`localSlice "${localSlice.name}" needs port or origin`);
+  }
+  if (!/^https?:\/\//.test(origin)) {
+    throw new Error(
+      `localSlice "${localSlice.name}" origin must be an absolute http(s) URL, got "${origin}".`,
+    );
+  }
+
   const derivedManifest: RuntimeCompositionManifest = {
     ...manifest,
     environments: {
       ...manifest.environments,
-      development: {
-        ...manifest.environments?.development,
+      [environment]: {
+        ...manifest.environments?.[environment],
         sliceOrigins: {
-          ...manifest.environments?.development?.sliceOrigins,
-          [localSlice.name]: `http://localhost:${localSlice.port}`,
+          ...manifest.environments?.[environment]?.sliceOrigins,
+          [localSlice.name]: origin,
         },
       },
     },
   };
 
-  return createImportMapBootstrapScript(derivedManifest, {
-    environment: "development",
-  });
+  return createImportMapBootstrapScript(derivedManifest, { environment });
 };
 
 export type IncludeHostedImportMapOptions = {
   manifest: RuntimeCompositionManifest;
   path?: string;
   localSlice?: LocalSliceOverride;
+  environment?: RuntimeEnvironment;
 };
 
 // Consuming HTML must declare the hosted import map as an ordinary external
@@ -182,6 +195,7 @@ export const includeHostedImportMap = ({
   manifest,
   path = "/js/importmap.js",
   localSlice,
+  environment = "development",
 }: IncludeHostedImportMapOptions): Plugin[] => [
   {
     name: "runtime-module-composition-hosted-import-map",
@@ -212,8 +226,8 @@ export const includeHostedImportMap = ({
         }
 
         const script = localSlice
-          ? buildLocalImportMapScript(manifest, localSlice)
-          : createImportMapBootstrapScript(manifest, { environment: "development" });
+          ? buildLocalImportMapScript(manifest, localSlice, environment)
+          : createImportMapBootstrapScript(manifest, { environment });
         res.setHeader("Content-Type", "text/javascript");
         res.end(script);
       });

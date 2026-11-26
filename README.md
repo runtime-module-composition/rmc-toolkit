@@ -67,6 +67,41 @@ export default defineConfig({
 
 The Vite adapter includes the generated import map in Vite's transformed HTML and externalizes manifest-owned specifiers so Vite does not rewrite or bundle imports that should be resolved by the browser. The import map must be present in the initial HTML before any dependent module scripts execute.
 
+### Serving modules from source on one origin
+
+`withLocalModules(manifest, overrides)` from `@rmc-toolkit/core` returns a derived manifest in which chosen module specifiers resolve to URLs you supply, typically source files served by a single local dev server, while everything else keeps resolving as before. Pass the derived manifest to both Vite plugins, with `environment: "preview"` so the hosted import map is built for that environment:
+
+```ts
+import { manifest } from "./manifest";
+import { withLocalModules } from "@rmc-toolkit/core";
+import { externalizeRuntimeComposition, includeHostedImportMap } from "@rmc-toolkit/vite";
+
+const origin = "https://local.staging.example.com:3000";
+const dev = withLocalModules(manifest, {
+  "@acme/search/index.mjs": `${origin}/repos/search/src/index.tsx`,
+  "@acme/ui": `${origin}/repos/ui/src/index.ts`,
+});
+
+export default {
+  plugins: [
+    ...includeHostedImportMap({ manifest: dev, environment: "preview" }),
+    externalizeRuntimeComposition({ manifest: dev, environment: "preview" }),
+  ],
+};
+```
+
+The override URL for a file inside the dev server's Vite root must be the root-relative URL Vite itself emits for a relative import of that file, not an `/@fs/` path, or the browser instantiates the file twice.
+
+`includeHostedImportMap` only serves the script at `/js/importmap.js`; the host HTML must reference it with exactly this tag, which the ordering plugin finds and moves ahead of other scripts in `<head>`:
+
+```html
+<head>
+  <script data-src-type="importmap" src="/js/importmap.js"></script>
+</head>
+```
+
+For a single slice, `includeHostedImportMap` also accepts `localSlice: { name, port }` or `localSlice: { name, origin }` as a shortcut.
+
 ## Status
 
 Early scaffold. The current goal is to prove the package boundaries and keep the core portable before adding framework-specific behavior.

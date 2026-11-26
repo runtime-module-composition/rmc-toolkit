@@ -261,3 +261,58 @@ export const resolveImportMapSpecifier = (
   // this invariant still holds.
   return importMap.imports[bestPrefix] + specifier.slice(bestPrefix.length);
 };
+
+export type LocalModuleOverrides = Record<string, string>;
+
+/**
+ * Returns a copy of the manifest with each override added to exactImports,
+ * pointing a specifier at a locally served module. An override replaces an
+ * existing exactImports entry of the same name, and also beats a
+ * sliceOverrides entry with the same specifier (that entry keeps its route
+ * but its entry points at the override). The input manifest is not mutated.
+ * Keys are exact specifiers: a key ending in "/" is a prefix mapping, which
+ * is not supported and throws. Prefix mappings already in the manifest are
+ * left as they are, so an exact override wins over the namespace prefix for
+ * its own specifier only.
+ */
+export const withLocalModules = (
+  manifest: RuntimeCompositionManifest,
+  overrides: LocalModuleOverrides,
+): RuntimeCompositionManifest => {
+  for (const [specifier, url] of Object.entries(overrides)) {
+    if (specifier.endsWith("/")) {
+      throw new Error(
+        `Local module override key "${specifier}" ends in "/"; keys are exact specifiers, prefix mappings are not supported.`,
+      );
+    }
+    if (!/^https?:\/\//.test(url)) {
+      throw new Error(
+        `Local module override for "${specifier}" must be an absolute http(s) URL, got "${url}".`,
+      );
+    }
+  }
+
+  const derived: RuntimeCompositionManifest = {
+    ...manifest,
+    exactImports: { ...manifest.exactImports, ...overrides },
+  };
+
+  if (manifest.sliceOverrides) {
+    // createImportMap writes sliceOverrides after exactImports, so a slice
+    // sharing an overridden specifier must point at the override too. The
+    // slice stays (routing reads it); dropping `environments` makes the
+    // absolute override URL the only candidate.
+    derived.sliceOverrides = Object.fromEntries(
+      Object.entries(manifest.sliceOverrides).map(([name, slice]) => {
+        const url = overrides[slice.specifier];
+        if (url === undefined) {
+          return [name, slice];
+        }
+        const { environments: _environments, ...rest } = slice;
+        return [name, { ...rest, entry: url }];
+      }),
+    );
+  }
+
+  return derived;
+};
